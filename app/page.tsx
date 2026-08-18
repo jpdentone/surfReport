@@ -133,14 +133,21 @@ export default async function Home({ searchParams }: PageProps) {
   )
 
   const markLabel = `${dayLabel(selectedDay, todayYmd).toLowerCase()} ${selectedSlot}`
+  const nowLabel = now.toLocaleTimeString('es-PE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'America/Lima',
+  })
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-16 pt-8">
       <header className="mb-6">
         <p className="text-xs uppercase tracking-widest text-[var(--ink-muted)]">
           {dayLabel(selectedDay, todayYmd)} · {selectedSlot}
+          <span className="ml-2 normal-case tracking-normal opacity-70">(hora actual {nowLabel})</span>
         </p>
-        <h1 className="font-display text-2xl italic">surfReport Lima</h1>
+        <h1 className="font-display text-2xl italic">¿Hay Olas?</h1>
 
         <div className="mt-4">
           {sparkline ? (

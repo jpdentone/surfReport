@@ -350,6 +350,16 @@ funcionaron, correcciones de la escuela, gates ajustados.
   precision que no tiene. Decision del usuario: mejor no mostrar nada que
   mostrar un numero con falsa precision. NO implementar esto sin volver a
   discutirlo — ver CLAUDE.md.
+- **2026-08-18** — Renombrada la app (nombre visible, no el repo/paquete):
+  **"¿Hay Olas?"**. Se probaron varias opciones (surfReport Lima sonaba
+  generico); el usuario eligio esta. Cambiado en `app/layout.tsx`
+  (metadata.title), `app/page.tsx` (h1), `README.md`. `package.json` pasó
+  a `hay-olas` (nombre de paquete, invisible para el usuario). El repo/
+  carpeta sigue llamandose `surfReport` — no se renombró, y no hace falta:
+  el dominio de Vercel se elige aparte al importar el proyecto y no
+  depende de `package.json` ni del nombre del repo. El usuario prefiere
+  `surfreport-lima.vercel.app` como dominio cuando se despliegue, que es
+  perfectamente válido aunque el título de la app diga otra cosa.
 - **2026-08-18** — Colores por nivel en las etiquetas (`--tag-kid`,
   `--tag-beginner`, `--tag-intermediate`, `--tag-advanced` en
   `app/globals.css`, mapeados en `lib/levels.ts`). Y más importante: se
