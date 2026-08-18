@@ -1,12 +1,15 @@
 import type { Spot, Verdict } from '@/lib/types'
+import { SwellDirection } from './SwellDirection'
 
 export function SpotCard({
   spot,
   verdict,
+  swellDirection,
   index,
 }: {
   spot: Spot
   verdict: Verdict
+  swellDirection?: number
   index: number
 }) {
   const ok = verdict.ok
@@ -37,6 +40,10 @@ export function SpotCard({
           </span>
         )}
       </div>
+
+      {swellDirection !== undefined && (
+        <SwellDirection degrees={swellDirection} />
+      )}
 
       {ok ? (
         <p className="text-sm text-[var(--ink-muted)] tabular-nums">{verdict.notes.join(' · ')}</p>

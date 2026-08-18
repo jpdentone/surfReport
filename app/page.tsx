@@ -13,7 +13,9 @@ function pickLevel(spot: Spot, preferred: Level, fallback: Level): Level {
   return spot.levels.includes(preferred) ? preferred : fallback
 }
 
-function sortByVerdict(entries: { spot: Spot; verdict: Verdict }[]) {
+type Entry = { spot: Spot; verdict: Verdict; swellDirection?: number }
+
+function sortByVerdict(entries: Entry[]) {
   return [...entries].sort((a, b) => {
     if (a.verdict.ok && b.verdict.ok) return b.verdict.score - a.verdict.score
     if (a.verdict.ok) return -1
@@ -22,11 +24,11 @@ function sortByVerdict(entries: { spot: Spot; verdict: Verdict }[]) {
   })
 }
 
-function SpotList({ entries }: { entries: { spot: Spot; verdict: Verdict }[] }) {
+function SpotList({ entries }: { entries: Entry[] }) {
   return (
     <div className="flex flex-col gap-2.5">
-      {entries.map(({ spot, verdict }, i) => (
-        <SpotCard key={spot.id} spot={spot} verdict={verdict} index={i} />
+      {entries.map(({ spot, verdict, swellDirection }, i) => (
+        <SpotCard key={spot.id} spot={spot} verdict={verdict} swellDirection={swellDirection} index={i} />
       ))}
     </div>
   )
@@ -62,7 +64,7 @@ export default async function Home() {
           conditions && tide
             ? evaluate(spot, conditions, tide, level)
             : ({ ok: false, reason: 'sin datos de marea/oleaje' } as const)
-        return { spot, verdict }
+        return { spot, verdict, swellDirection: conditions?.swell.direction }
       }),
   )
 
@@ -75,7 +77,7 @@ export default async function Home() {
           conditions && tide
             ? evaluate(spot, conditions, tide, level)
             : ({ ok: false, reason: 'sin datos de marea/oleaje' } as const)
-        return { spot, verdict }
+        return { spot, verdict, swellDirection: conditions?.swell.direction }
       }),
   )
 
