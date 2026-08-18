@@ -1,12 +1,12 @@
 import { getConditions } from '@/lib/openMeteo'
 import { getTideAt, getTideSeries, getUpcomingExtremes } from '@/lib/tide'
-import { evaluate } from '@/lib/scoring'
+import { breakingHeight, evaluate, levelTags as computeLevelTags } from '@/lib/scoring'
+import { pickBeginnerSpot } from '@/lib/beginnerChain'
 import { spots } from '@/data/spots'
-import type { Level, Spot, Verdict } from '@/lib/types'
+import type { Region, Spot, Verdict } from '@/lib/types'
 import { SLOTS, addDaysYMD, dayLabel, defaultSlot, limaCurrentHour, limaDateTime, limaYMD, type Slot } from '@/lib/dates'
 import { TideSparkline } from '@/components/TideSparkline'
 import { SpotCard } from '@/components/SpotCard'
-import { LevelSwitcher } from '@/components/LevelSwitcher'
 import { DaySlotPicker } from '@/components/DaySlotPicker'
 
 export const revalidate = 3600
@@ -14,11 +14,7 @@ export const revalidate = 3600
 const FORECAST_DAYS = 7
 const LOW_CONFIDENCE_FROM = 5 // dias 6 y 7 (indice 5 y 6): el modelo pierde skill despues del dia 5-7
 
-function pickLevel(spot: Spot, preferred: Level, fallback: Level): Level {
-  return spot.levels.includes(preferred) ? preferred : fallback
-}
-
-type Entry = { spot: Spot; verdict: Verdict; swellDirection?: number }
+type Entry = { spot: Spot; verdict: Verdict; levelTags: ReturnType<typeof computeLevelTags>; swellDirection?: number }
 
 function sortByVerdict(entries: Entry[]) {
   return [...entries].sort((a, b) => {
@@ -29,18 +25,56 @@ function sortByVerdict(entries: Entry[]) {
   })
 }
 
-function SpotList({ entries, markTopPick = false }: { entries: Entry[]; markTopPick?: boolean }) {
+function SpotList({ entries, topPickId }: { entries: Entry[]; topPickId?: string }) {
   return (
     <div className="flex flex-col gap-2.5">
-      {entries.map(({ spot, verdict, swellDirection }, i) => (
+      {entries.map(({ spot, verdict, levelTags, swellDirection }, i) => (
         <SpotCard
           key={spot.id}
           spot={spot}
           verdict={verdict}
+          levelTags={levelTags}
           swellDirection={swellDirection}
           index={i}
-          topPick={markTopPick && i === 0 && verdict.ok}
+          topPick={spot.id === topPickId}
         />
+      ))}
+    </div>
+  )
+}
+
+const REGION_LABELS: Record<Region, string> = {
+  'costa-verde': 'Costa Verde',
+  'lima-sur': 'Lima Sur',
+}
+
+/**
+ * Agrupa por region (Costa Verde vs Lima Sur) en vez de mezclar todo en una
+ * sola lista — no es lo mismo manejar 15 min que un viaje largo, y esa
+ * decision ("¿vale la pena ir hasta Lima Sur hoy?") es previa a cual playa
+ * puntual conviene dentro de la region.
+ */
+function RegionGroupedList({ entries }: { entries: Entry[] }) {
+  const topPickId = entries.find((e) => e.verdict.ok)?.spot.id
+
+  const regions: Region[] = ['costa-verde', 'lima-sur']
+  const sections = regions
+    .map((region) => ({ region, items: entries.filter((e) => e.spot.region === region) }))
+    .filter((s) => s.items.length > 0)
+
+  if (sections.length <= 1) {
+    return <SpotList entries={entries} topPickId={topPickId} />
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      {sections.map(({ region, items }) => (
+        <div key={region}>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-widest text-[var(--ink-muted)]">
+            {REGION_LABELS[region]}
+          </h2>
+          <SpotList entries={items} topPickId={topPickId} />
+        </div>
       ))}
     </div>
   )
@@ -81,30 +115,21 @@ export default async function Home({ searchParams }: PageProps) {
     tide = null
   }
 
-  const escuela = sortByVerdict(
-    bySpot
-      .filter(({ spot }) => spot.levels.includes('kid-beginner') || spot.levels.includes('beginner'))
-      .map(({ spot, conditions }) => {
-        const level = pickLevel(spot, 'kid-beginner', 'beginner')
-        const verdict =
-          conditions && tide
-            ? evaluate(spot, conditions, tide, level)
-            : ({ ok: false, reason: 'sin datos de marea/oleaje' } as const)
-        return { spot, verdict, swellDirection: conditions?.swell.direction }
-      }),
-  )
+  const breakingById: Record<string, number> = {}
+  for (const { spot, conditions } of bySpot) {
+    if (conditions) breakingById[spot.id] = breakingHeight(spot, conditions)
+  }
+  const beginnerPick = pickBeginnerSpot(breakingById)
 
-  const avanzado = sortByVerdict(
-    bySpot
-      .filter(({ spot }) => spot.levels.includes('advanced') || spot.levels.includes('intermediate'))
-      .map(({ spot, conditions }) => {
-        const level = pickLevel(spot, 'advanced', 'intermediate')
-        const verdict =
-          conditions && tide
-            ? evaluate(spot, conditions, tide, level)
-            : ({ ok: false, reason: 'sin datos de marea/oleaje' } as const)
-        return { spot, verdict, swellDirection: conditions?.swell.direction }
-      }),
+  const entries = sortByVerdict(
+    bySpot.map(({ spot, conditions }) => {
+      if (!conditions || !tide) {
+        return { spot, verdict: { ok: false, reason: 'sin datos de marea/oleaje' } as const, levelTags: [] }
+      }
+      const verdict = evaluate(spot, conditions, tide)
+      const tags = computeLevelTags(spot, breakingHeight(spot, conditions), beginnerPick.spotId)
+      return { spot, verdict, levelTags: tags, swellDirection: conditions.swell.direction }
+    }),
   )
 
   const markLabel = `${dayLabel(selectedDay, todayYmd).toLowerCase()} ${selectedSlot}`
@@ -142,13 +167,22 @@ export default async function Home({ searchParams }: PageProps) {
         lowConfidenceFrom={LOW_CONFIDENCE_FROM}
       />
 
-      <LevelSwitcher
-        escuela={<SpotList entries={escuela} markTopPick />}
-        avanzado={<SpotList entries={avanzado} />}
-      />
+      {beginnerPick.spotId === null && (
+        <p
+          className="mb-4 rounded-sm px-3 py-2 text-sm"
+          style={{ background: 'var(--stop-bg)', color: 'var(--stop)' }}
+        >
+          {beginnerPick.reason === 'muy-grande'
+            ? 'Principiantes/niños: sin opción hoy — Barranquito y Ala Moana están muy grandes.'
+            : 'Principiantes/niños: sin ola hoy en Barranquito, Redondo ni Delfines.'}
+        </p>
+      )}
+
+      <RegionGroupedList entries={entries} />
 
       <footer className="mt-10 border-t pt-4 text-xs text-[var(--ink-muted)]">
-        Oleaje y viento: Open-Meteo · Marea: DIHIDRONAV (Callao, agosto 2026) · No reemplaza el
+        Oleaje y viento: Open-Meteo · Marea: DIHIDRONAV (Callao, agosto 2026) · El score mide
+        tamaño + orden de la ola, no si te conviene — mirá las etiquetas de nivel. No reemplaza el
         criterio del instructor en el agua.
       </footer>
     </main>

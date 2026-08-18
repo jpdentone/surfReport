@@ -1,15 +1,18 @@
-import type { Spot, Verdict } from '@/lib/types'
+import type { Level, Spot, Verdict } from '@/lib/types'
+import { LEVEL_COLORS, LEVEL_LABELS } from '@/lib/levels'
 import { SwellDirection } from './SwellDirection'
 
 export function SpotCard({
   spot,
   verdict,
+  levelTags,
   swellDirection,
   index,
   topPick = false,
 }: {
   spot: Spot
   verdict: Verdict
+  levelTags: Level[]
   swellDirection?: number
   index: number
   topPick?: boolean
@@ -18,9 +21,10 @@ export function SpotCard({
 
   return (
     <article
-      className="rise-in flex flex-col gap-1.5 rounded-sm border-l-[3px] bg-[var(--bg-raised)] px-4 py-3.5 transition-colors"
+      className="rise-in flex flex-col gap-1.5 rounded-sm border-l-[3px] px-4 py-3.5 transition-colors"
       style={{
-        borderLeftColor: ok ? 'var(--go)' : 'var(--stop)',
+        background: 'var(--bg-raised)',
+        borderLeftColor: topPick ? 'var(--accent)' : 'var(--line)',
         animationDelay: `${index * 40}ms`,
       }}
     >
@@ -40,20 +44,38 @@ export function SpotCard({
             className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums"
             style={{ background: 'var(--go-bg)', color: 'var(--go)' }}
           >
-            sí · {verdict.score}
+            {verdict.score}
           </span>
         ) : (
           <span
             className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
             style={{ background: 'var(--stop-bg)', color: 'var(--stop)' }}
           >
-            cerrado
+            sin datos
           </span>
         )}
       </div>
 
-      {swellDirection !== undefined && (
-        <SwellDirection degrees={swellDirection} />
+      {swellDirection !== undefined && <SwellDirection degrees={swellDirection} />}
+
+      {ok && (
+        <div className="flex flex-wrap gap-1.5">
+          {levelTags.length > 0 ? (
+            levelTags.map((level) => (
+              <span
+                key={level}
+                className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                style={{ background: LEVEL_COLORS[level].bg, color: LEVEL_COLORS[level].color }}
+              >
+                {LEVEL_LABELS[level]}
+              </span>
+            ))
+          ) : (
+            <span className="text-[11px] italic text-[var(--ink-muted)]">
+              sin nivel claro hoy con este tamaño
+            </span>
+          )}
+        </div>
       )}
 
       {ok ? (

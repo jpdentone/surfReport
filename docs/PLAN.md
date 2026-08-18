@@ -303,6 +303,105 @@ funcionaron, correcciones de la escuela, gates ajustados.
   idéntico, sin importar el parámetro. No hay archivo navegable. Se decidió
   no automatizar el refresco todavía (septiembre está a ~2 semanas, prioridad
   fue la UI) — ver Fase 2 para las opciones cuando se retome.
+- **2026-08-18** — Se agregó `region` a `Spot` (`costa-verde` | `lima-sur`)
+  y se agrupan las listas por región dentro de cada nivel (encabezado
+  "Costa Verde" / "Lima Sur" en vez de una sola lista mezclada), a pedido
+  del usuario tras notar que San Bartolo (52km) no debería aparecer mezclado
+  con Barranquito (10 min) sin distinción. Sin tiempo de manejo mostrado (a
+  pedido explícito) — solo el nombre de la región. El "mejor hoy" sigue
+  siendo un solo pick global (la mejor playa entre TODAS las regiones), no
+  uno por región — verificado en navegador: hoy San Bartolo (score 72) se
+  llevó la etiqueta global, apareciendo bajo "Lima Sur", mientras Barranquito
+  lidera "Costa Verde" sin la etiqueta. Nueva sección solo se muestra si hay
+  más de una región con spots en esa lista (evita header inútil si algún día
+  un grupo queda con una sola región).
+- **2026-08-18** — Corrección: el usuario indicó que La Pampilla NO es para
+  niños/principiantes, es de nivel intermedio para arriba — se movió del
+  grupo escuela al grupo avanzado (`levels: ['intermediate','advanced']`,
+  sin gates de principiante). También se agregó San Bartolo
+  (-12.3865,-76.7835, coords convertidas desde wannasurf.com — point break
+  de canto rodado/boulder, ola principal accesible para beginner/
+  intermediate, con una ola aparte "Peñascal" solo para expertos que NO se
+  agregó). San Bartolo aparece en ambos grupos (escuela y avanzado) porque
+  su nivel incluye tanto `beginner` como `intermediate`. Su celda oceánica
+  coincide con la de Punta Rocas (~1.5km de distancia) — mismo patrón ya
+  documentado, no es un bug. Verificado en navegador que ambos grupos
+  quedaron correctos.
+- **2026-08-18** — El usuario agregó 3 playas de escuela usando coordenadas
+  reales sacadas de una búsqueda con IA (Wikipedia/Scribd citados): La
+  Pampilla (-12.1233,-77.0422) y Delfines (-12.1122,-77.0467) se sumaron;
+  Agua Dulce se sacó y se reemplazó por Ala Moana (-12.1567,-77.0267).
+  Las 3 caen en la misma celda oceánica que el resto de la Costa Verde
+  (esperado, no es un bug). Nivel asignado a las 3 por defecto:
+  kid-beginner/beginner igual que las demás — con una salvedad marcada en
+  `docs/SPOTS.md`: Wikipedia describe La Pampilla como "rompiente de ola"
+  (rompiente real, no solo playa de baño), lo que sugiere que podría tener
+  más fuerza de la asumida — revisar con la escuela antes de confiar en
+  esa clasificación para niños. Grupo escuela ahora tiene 6 playas:
+  Barranquito, Redondo, Makaha/Waikiki, La Pampilla, Delfines, Ala Moana.
+- **2026-08-18** — Se evaluó agregar "Wave Energy" (kJ) como muestra
+  Surfline. Confirmado: Open-Meteo no tiene ese campo (no existe
+  `wave_energy_flux`). Se puede calcular con la formula fisica estandar
+  (P ≈ 0.49 × H² × T, potencia de ola en aguas profundas), pero se
+  descartó implementarlo: Surfline suma varios trenes de swell (primario +
+  secundario, datos espectrales de boya) y nosotros solo tenemos el swell
+  dominante de Open-Meteo — cualquier numero que calculemos quedaria
+  sistematicamente subestimado frente al de Surfline, con apariencia de
+  precision que no tiene. Decision del usuario: mejor no mostrar nada que
+  mostrar un numero con falsa precision. NO implementar esto sin volver a
+  discutirlo — ver CLAUDE.md.
+- **2026-08-18** — Colores por nivel en las etiquetas (`--tag-kid`,
+  `--tag-beginner`, `--tag-intermediate`, `--tag-advanced` en
+  `app/globals.css`, mapeados en `lib/levels.ts`). Y más importante: se
+  implementó la cadena REAL de decisión para principiantes/niños que el
+  usuario describió de su experiencia de varios años (documentada en
+  `docs/SPOTS.md`): Barranquito por defecto → si flat, Redondo → si
+  también flat, Delfines. Si Barranquito muy grande → Ala Moana → si
+  también grande, cancelado. Vive en `lib/beginnerChain.ts`, separada de
+  `levelTags()` genérico. Solo el ganador de la cadena recibe la etiqueta
+  kid-beginner/beginner ese día entre esos 4 spots — otros de la Costa
+  Verde que también calificarían por rango genérico (ej. Redondo con 0.6m)
+  NO la reciben si no fueron el elegido, porque la cadena es secuencial,
+  no "todos los que califiquen". Cuando se cancela, aparece un aviso rojo
+  arriba de la lista. Verificado en navegador con 3 escenarios reales:
+  swell grande (hoy) → cancelado correctamente (Barranquito 1.4m y Ala
+  Moana 1.5m, ambos > BIG_MIN); swell chico (23-ago) → Barranquito elegido
+  correctamente, Redondo/Delfines/Ala Moana sin etiqueta aunque calificaran
+  por tamaño. Umbrales (`FLAT_MAX=0.25m`, `BIG_MIN=1.1m`) a ojo, pendientes
+  de calibrar.
+- **2026-08-18** — **Cambio grande de arquitectura: score unificado, sin
+  toggle de nivel.** Historial completo de esta decisión (útil si hay que
+  volver a discutirla):
+  1. Empezamos con gates duros para principiantes (veto por "no ideal").
+  2. El usuario señaló que una escuela de surf da clases todos los días —
+     cambiamos a veto solo por peligro real.
+  3. El usuario pidió sacar TODO umbral — sin veto, pero quedaron DOS
+     fórmulas de score paralelas (una premiaba tamaño para avanzado, otra
+     lo penalizaba para principiante).
+  4. El usuario notó el problema real de fondo: si esto se comparte, nadie
+     sabe que hay dos escalas de score ocultas — un "72" no significa lo
+     mismo en cada pestaña. Sugirió sacar el toggle y mostrar todo en una
+     lista con tags de nivel. Se afinó la propuesta: un score neutro
+     ("cuánta ola hay y qué tan ordenada viene": tamaño + periodo + viento +
+     marea) que no opina sobre para quién es buena, más un cálculo
+     SEPARADO de a qué niveles le sirve ese tamaño hoy (`levelTags()`,
+     rangos globales de altura por nivel, no por spot).
+  Resultado: `lib/scoring.ts` tiene una sola `evaluate()` (antes eran dos
+  ramas con fórmulas distintas) + `levelTags()`. `Gates`/`idealBreakingHeight`
+  salieron de `Spot` — ya no existen. `LevelSwitcher.tsx` se borró (sin
+  toggle). `app/page.tsx` calcula una sola lista, ordenada por score,
+  agrupada por región (Costa Verde / Lima Sur, sin cambios ahí). Cada card
+  muestra tags de nivel (`components/SpotCard.tsx`) — si el tamaño de hoy
+  no cae en el rango de ningún nivel que ese spot pueda servir, se muestra
+  "sin nivel claro hoy" en vez de ocultar la playa.
+  Verificado en navegador con datos reales: Redondo hoy (swell grande) no
+  mostró ninguna etiqueta de nivel — correcto, ningún nivel de los que
+  sirve (kid-beginner/beginner) calza con el tamaño de hoy. San Bartolo
+  mostró solo "intermedio" (no "principiante") por el mismo motivo. "Mejor
+  hoy" sigue siendo un pick global entre TODOS los spots (hoy: Punta Rocas,
+  score 74) — no cambió con este refactor.
+  ⚠️ No reintroducir un score por nivel sin discutirlo — ver CLAUDE.md
+  decisión #2.
 - **2026-08-18** — El usuario compartió una captura de lo que la escuela
   manda por WhatsApp de noche: un PDF de ALTAMAR con altura/periodo/dirección
   por AM/PM para 8 días, codificado por color. Pidió algo similar pero con

@@ -3,10 +3,12 @@
 App personal de reporte de surf para Lima, Perú. Uso familiar: recomienda a qué
 playa ir según las condiciones **y según el nivel de cada surfista**.
 
-Dos perfiles reales de uso:
+Dos perfiles reales de uso, en la MISMA lista (sin toggle de nivel — ver
+decisión #2 reescrita):
 - Adulto intermedio/avanzado → picos como Punta Rocas, La Herradura, Cerro Azul.
-- Niño de 9 años en escuela de surf + amigos → playas de principiantes de la
-  Costa Verde (Barranquito, Redondo, Makaha/Waikiki, Agua Dulce).
+- Niño de 9 años en escuela de surf + amigos → playas de la Costa Verde y
+  alrededores (Barranquito, Redondo, Makaha/Waikiki, Ala Moana, Punta
+  Roquitas, Delfines, San Bartolo).
 
 > El plan completo está en `docs/PLAN.md`. El conocimiento local por playa
 > (lo que no viene de ninguna API) se captura en `docs/SPOTS.md`.
@@ -24,41 +26,71 @@ Dos perfiles reales de uso:
    todo componente React. Se va a ajustar durante meses según lo observado en el
    agua; tiene que ser testeable sin levantar UI.
 
-2. **Para principiantes: SIN umbrales de ningún tipo — siempre se
-   muestran las 4 playas, rankeadas.** Revisado dos veces el 2026-08-18:
-   primero se probó con gates duros (veto por "no es ideal"), después con
-   veto solo por peligro real (`danger*`), y finalmente —a pedido explícito—
-   se sacó todo umbral. La escuela de surf es un negocio y da clases todos
-   los días; ninguna condición por sí sola debe decir "cerrado". `Gates`
-   ahora solo tiene `idealBreakingHeight`/`idealPeriod` como referencia de
-   score (cuanto más lejos de lo ideal, menos puntaje, pero nunca `ok:
-   false`). El objetivo es señalar la MEJOR playa disponible ese día, nunca
-   decir que no hay ninguna. Para nivel avanzado sigue usándose score
-   ponderado sin veto (salvo que el spot no aplique al nivel — eso es
-   config, no condición del mar).
-   ⚠️ Si en el futuro se necesita un veto real de seguridad (ej. una
-   marejada extraordinaria), discutirlo con el usuario antes de
-   reintroducirlo — ya se probó dos veces y se pidió explícitamente
-   sacarlo.
-
-3. **El score se invierte según nivel.** Periodo largo y altura son ✅ para
-   avanzado y ❌ para principiante. No existe una sola escala de "bueno".
+2. **UN SOLO score por spot, level-agnostic — no dos fórmulas por nivel.**
+   Reescrito 2026-08-18, tercera iteración de esta decisión (historial
+   completo en `docs/PLAN.md`, vale la pena leerlo antes de tocar esto de
+   nuevo):
+   1. Primero: gates duros (veto por "no es ideal para principiante").
+   2. Después: veto solo por peligro real.
+   3. Después: sin veto, pero con DOS fórmulas de score paralelas (una que
+      premiaba tamaño para avanzado, otra que lo penalizaba para
+      principiante) — el usuario notó que compartir la app así confundía:
+      un "72" en la pestaña escuela no significa lo mismo que un "72" en
+      avanzado, y quien lo mira sin contexto no lo sabe.
+   4. **Actual**: `evaluate()` en `lib/scoring.ts` da un solo score
+      "cuánta ola hay y qué tan ordenada viene" (tamaño + periodo + viento +
+      marea), igual para cualquier spot, sin opinar sobre para quién es
+      buena. Por separado, `levelTags()` calcula a qué niveles le sirve HOY
+      ese tamaño de ola (rangos globales de altura por nivel en
+      `LEVEL_RANGES`, no por spot). El score nunca cambia según quién
+      pregunta; las etiquetas sí. Sin toggle de nivel en la UI — una sola
+      lista, agrupada por región, con las etiquetas visibles en cada card.
+   ⚠️ No reintroducir un score dual o un veto por nivel sin discutirlo — ya
+   se iteró 3 veces sobre este punto.
 
 4. **Cada spot necesita un coeficiente `exposure`.** La API entrega swell
    offshore; hay que atenuarlo por refracción/abrigo para estimar la ola que
    realmente rompe en cada playa. Ver punto crítico abajo.
 
-5. **El periodo pesa más que la altura.** Rankear por altura manda al agua el
-   día equivocado.
+5. **El periodo pesa tanto como la altura en el score (35/35 en
+   `evaluate()`).** Ojo: esto NO es lo mismo que "rankear por altura", que
+   sigue siendo el error a evitar — un día grande pero de periodo corto
+   (desordenado) no debe ganarle a uno más chico pero de periodo largo
+   (ordenado). El score actual ya lo resuelve al pesar ambos igual en vez
+   de solo mirar altura.
 
 6. **La marea se precalcula, no se consulta.** Es astronomía, no clima.
+
+7. **La cadena real de principiantes/niños vive en `lib/beginnerChain.ts`,
+   separada de `levelTags()`.** Conocimiento local de varios años del
+   usuario, no una formula generica: Barranquito es la playa por defecto;
+   si esta flat se prueba Redondo, despues Delfines; si esta muy grande se
+   prueba Ala Moana; si esa tambien esta grande, se cancela el surf de
+   principiantes ese dia (se muestra un aviso). Es una decision SECUENCIAL
+   (una playa a la vez, en ese orden), no "todas las que califiquen por
+   rango" — por eso el ganador de la cadena es el UNICO de esos 4 spots que
+   recibe la etiqueta kid-beginner/beginner ese dia, aunque otro tambien
+   caiga en rango por altura. Otros spots de principiantes fuera de la
+   cadena (Makaha, Punta Roquitas, San Bartolo) siguen con el rango
+   generico de `LEVEL_RANGES` — no tenemos ese mismo conocimiento local
+   para ellos todavia.
+
+8. **No mostrar "Wave Energy" (kJ) tipo Surfline.** Se puede calcular con la
+   fórmula física estándar (P ≈ 0.49 × H² × T), pero Surfline suma varios
+   trenes de swell (datos espectrales de boya) y nosotros solo tenemos el
+   swell dominante de Open-Meteo — el número saldría sistemáticamente
+   subestimado, con apariencia de precisión que no tiene. Decisión explícita
+   del usuario 2026-08-18: mejor no mostrar nada que mostrar algo falso. No
+   reintroducir sin discutirlo primero.
 
 ## Punto crítico sobre los datos
 
 **La Marine API no distingue entre las playas de la Costa Verde.** Verificado:
-Barranquito, Redondo, Makaha y Agua Dulce devuelven todos la misma celda de
-grilla (`-12.208,-77.042`), con valores idénticos. Están a 2-6 km entre sí y el
-modelo global las ve como un solo punto.
+Barranquito, Redondo, Makaha, Ala Moana, Punta Roquitas, Delfines y La
+Pampilla devuelven todos la misma celda de grilla, con valores idénticos.
+Están a 2-6 km entre sí y el modelo global las ve como un solo punto. San
+Bartolo (Lima Sur) también comparte celda con Punta Rocas pese a ~1.5km de
+distancia — mismo fenómeno, otra zona.
 
 Consecuencia: **la diferenciación entre playas NO puede venir de la API.** Viene
 100% del config local en `docs/SPOTS.md` (exposición, fondo, abrigo, ventana de

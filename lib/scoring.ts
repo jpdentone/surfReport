@@ -1,96 +1,86 @@
 import type { Conditions, Level, Spot, TidePoint, Verdict } from './types'
+import { BEGINNER_CHAIN_SPOT_IDS } from './beginnerChain'
 
 /** Altura de ola rompiendo en la orilla, estimada desde el swell offshore. */
 export function breakingHeight(spot: Spot, conditions: Conditions): number {
   return conditions.swell.height * spot.exposure
 }
 
+/**
+ * Rango de altura rompiente (m) que le sirve a cada nivel. Es global, no
+ * por spot — la fuerza real de una ola de cierta altura es mas o menos la
+ * misma en cualquier playa; lo que cambia entre playas es `spot.levels`
+ * (que niveles esa playa puede llegar a servir en algun momento) y el
+ * `exposure` (cuanto de esa altura le llega). Rangos se solapan a
+ * proposito: un dia de 0.8m puede calzar en beginner E intermediate.
+ * Valores a ojo — ajustar con la bitacora de docs/SPOTS.md.
+ */
+const LEVEL_RANGES: Record<Level, [min: number, max: number]> = {
+  'kid-beginner': [0, 0.6],
+  beginner: [0, 1.0],
+  intermediate: [0.5, 2.2],
+  advanced: [1.0, Infinity],
+}
+
 const BEGINNER_LEVELS: Level[] = ['kid-beginner', 'beginner']
 
 /**
- * Veredicto de un spot para un nivel dado, en un momento dado.
+ * Que niveles de los que este spot puede servir aplican HOY.
  *
- * Principiantes (incluye kid-beginner): la escuela de surf es un negocio,
- * da clases todos los dias — a pedido, NINGUNA condicion cierra una playa
- * de este grupo. Siempre se muestran las 4, con un score de que tan comoda
- * esta la ola para aprender ese dia. `idealBreakingHeight`/`idealPeriod`
- * son solo referencia para el ranking, no umbrales que vetan — ver
- * CLAUDE.md, decision #2 (revisada 2 veces: primero gates duros, despues
- * peligro-real-veta, ahora sin ningun umbral).
- *
- * Intermedio/avanzado: mismo espiritu, score ponderado sin vetos (el
- * criterio de que tan grande/fuerte es aceptable lo pone el surfista).
+ * Para los 4 spots de la cadena real de principiantes (ver
+ * `lib/beginnerChain.ts`), la etiqueta kid-beginner/beginner NO sale de
+ * rangos genericos — sale de si ese spot fue el elegido por la cadena.
+ * No es "cualquiera que califique", es "la playa a la que realmente se va".
+ * Para el resto de spots (incluidos otros que tambien sirven a
+ * principiantes, como Makaha o San Bartolo) se usa el rango generico.
  */
-export function evaluate(
-  spot: Spot,
-  conditions: Conditions,
-  tide: TidePoint,
-  level: Level,
-): Verdict {
-  if (!spot.levels.includes(level)) {
-    return { ok: false, reason: `${spot.name} no es un spot para nivel ${level}` }
-  }
+export function levelTags(spot: Spot, breaking: number, beginnerPickId?: string | null): Level[] {
+  const isChainSpot = (BEGINNER_CHAIN_SPOT_IDS as readonly string[]).includes(spot.id)
 
-  const breaking = breakingHeight(spot, conditions)
-
-  if (BEGINNER_LEVELS.includes(level)) {
-    const gates = spot.gates[level]
-    if (!gates) {
-      return { ok: false, reason: `sin gates configurados para ${level}` }
+  return spot.levels.filter((level) => {
+    if (isChainSpot && BEGINNER_LEVELS.includes(level)) {
+      return spot.id === beginnerPickId
     }
+    const [min, max] = LEVEL_RANGES[level]
+    return breaking >= min && breaking <= max
+  })
+}
 
-    const notes: string[] = []
-    let score = 0
-
-    // mientras mas cerca de lo ideal, mejor — decae suave sin cortar en seco
-    const sizeFit = Math.min(gates.idealBreakingHeight / Math.max(breaking, 0.01), 1)
-    score += sizeFit * 45
-    notes.push(`ola est. ${breaking.toFixed(1)}m`)
-
-    const periodFit = Math.min(gates.idealPeriod / Math.max(conditions.swell.period, 0.01), 1)
-    score += periodFit * 25
-    notes.push(`periodo ${conditions.swell.period}s`)
-
-    const windFit = 1 - Math.min(conditions.wind.speed / 30, 1)
-    score += windFit * 15
-    notes.push(`viento ${conditions.wind.speed}km/h`)
-
-    const inWindow = tide.height >= spot.tide.min && tide.height <= spot.tide.max
-    score += inWindow ? 15 : 5
-    notes.push(`marea ${tide.height}m${inWindow ? ' (en ventana)' : ''}`)
-
-    return { ok: true, score: Math.round(score), notes }
-  }
-
-  // intermedio / avanzado: score ponderado, sin veto duro
+/**
+ * Score UNICO por spot: "cuanta ola hay y que tan ordenada viene" —
+ * tamano + periodo (mas periodo = groundswell mas limpio, no oleaje
+ * picado), modulado por viento y marea. A proposito NO opina si eso es
+ * "bueno para vos": un score alto significa lo mismo sin importar quien
+ * pregunta. Quien es para quien lo dice `levelTags()`, no el score.
+ * Ver CLAUDE.md, decision #2 (reescrita 2026-08-18 — antes habia dos
+ * formulas de score distintas por nivel; se unificaron a pedido del
+ * usuario porque compartir dos escalas ocultas confundia).
+ */
+export function evaluate(spot: Spot, conditions: Conditions, tide: TidePoint): Verdict {
+  const breaking = breakingHeight(spot, conditions)
   const notes: string[] = []
   let score = 0
 
-  // periodo largo = groundswell de verdad, mas pared y fuerza (hasta ~16s)
-  const periodScore = Math.min(conditions.swell.period / 16, 1)
-  score += periodScore * 40
+  // periodo largo = groundswell de verdad, mas ordenado (hasta ~16s)
+  const periodFit = Math.min(conditions.swell.period / 16, 1)
+  score += periodFit * 35
   notes.push(`periodo ${conditions.swell.period}s`)
 
-  // altura rompiendo: util hasta un punto, pasado eso ya no suma mas
-  const heightScore = Math.min(breaking / 2.5, 1)
-  score += heightScore * 30
+  // altura: mas ola = mas score, con retornos decrecientes pasado los 2.5m
+  const heightFit = Math.min(breaking / 2.5, 1)
+  score += heightFit * 35
   notes.push(`ola est. ${breaking.toFixed(1)}m`)
 
-  // viento fuerte deshace la cara de la ola, sin importar la direccion exacta
-  const windPenalty = Math.min(conditions.wind.speed / 40, 1)
-  score += (1 - windPenalty) * 15
+  // viento fuerte deshace el orden de la ola sin importar la direccion exacta
+  const windFit = 1 - Math.min(conditions.wind.speed / 40, 1)
+  score += windFit * 15
   notes.push(`viento ${conditions.wind.speed}km/h`)
 
   // marea dentro de la ventana preferida del spot
   const inWindow = tide.height >= spot.tide.min && tide.height <= spot.tide.max
-  if (inWindow) {
-    score += 10
-    notes.push(`marea ${tide.height}m (en ventana)`)
-  } else {
-    notes.push(`marea ${tide.height}m (fuera de ventana ${spot.tide.min}-${spot.tide.max}m)`)
-  }
+  score += inWindow ? 15 : 5
+  notes.push(`marea ${tide.height}m${inWindow ? ' (en ventana)' : ''}`)
   if (spot.tide.prefers && tide.trend === spot.tide.prefers) {
-    score += 5
     notes.push(`marea ${tide.trend === 'rising' ? 'subiendo' : 'bajando'} (preferida)`)
   }
 

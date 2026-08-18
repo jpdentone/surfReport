@@ -2,24 +2,20 @@ export type Level = 'kid-beginner' | 'beginner' | 'intermediate' | 'advanced'
 
 export type Bottom = 'canto-rodado' | 'arena' | 'reef'
 
-export type Gates = {
-  // Punto de referencia "comodo para aprender" — mientras mas cerca este
-  // la condicion real de esto, mas alto el score. Sin umbral duro: nunca
-  // cierra la playa por si sola, solo influye el ranking (ver CLAUDE.md,
-  // decision #2 — a pedido, ninguna condicion cierra playas de escuela).
-  idealBreakingHeight: number // m
-  idealPeriod: number // s
-}
+export type Region = 'costa-verde' | 'lima-sur'
 
 export type Spot = {
   id: string
   name: string
+  region: Region
   // coords YA corregidas a una celda oceanica valida (ver docs/PLAN.md)
   coords: { lat: number; lon: number }
   exposure: number // 0-1, atenuacion del swell offshore al romper
   bottom: Bottom
+  // niveles que ESTE spot puede llegar a servir (segun conocimiento local /
+  // fuente). Cual de ellos aplica HOY sale de la altura real rompiendo —
+  // ver lib/scoring.ts `levelTags()`. No es un gate, es solo elegibilidad.
   levels: Level[]
-  gates: Partial<Record<Level, Gates>>
   tide: { min: number; max: number; prefers?: 'rising' | 'falling' }
 }
 

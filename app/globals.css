@@ -19,6 +19,17 @@
   --stop: #a8402c;
   --stop-bg: #f3e4df;
   --tide-line: #1b2b38;
+
+  /* Etiquetas de nivel — colores amables, uno por nivel, distintos del
+     acento/veredicto para que no se confundan con "destacado" o "bueno". */
+  --tag-kid: #2f6690;
+  --tag-kid-bg: #dfeaf3;
+  --tag-beginner: #3f7d5c;
+  --tag-beginner-bg: #e1efe6;
+  --tag-intermediate: #96701c;
+  --tag-intermediate-bg: #f3ead0;
+  --tag-advanced: #7a4a8f;
+  --tag-advanced-bg: #efe3f5;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,6 +45,15 @@
     --stop: #d9765c;
     --stop-bg: #2b1912;
     --tide-line: #7fa8b8;
+
+    --tag-kid: #8fc1e8;
+    --tag-kid-bg: #16283a;
+    --tag-beginner: #8fcaa7;
+    --tag-beginner-bg: #16281f;
+    --tag-intermediate: #e0bd6e;
+    --tag-intermediate-bg: #2e2410;
+    --tag-advanced: #cfa3df;
+    --tag-advanced-bg: #2a1c33;
   }
 }
 
