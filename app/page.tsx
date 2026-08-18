@@ -1,6 +1,6 @@
 import { getConditions } from '@/lib/openMeteo'
 import { getTideAt, getTideSeries, getUpcomingExtremes } from '@/lib/tide'
-import { breakingHeight, evaluate, levelTags as computeLevelTags } from '@/lib/scoring'
+import { breakingHeight, evaluate, levelTags as computeLevelTags, seccion as computeSeccion } from '@/lib/scoring'
 import { pickBeginnerSpot } from '@/lib/beginnerChain'
 import { plainSummary } from '@/lib/summary'
 import { spots } from '@/data/spots'
@@ -23,6 +23,7 @@ type Entry = {
   levelTags: ReturnType<typeof computeLevelTags>
   swellDirection?: number
   summary?: string
+  seccion?: ReturnType<typeof computeSeccion>
 }
 
 function sortByVerdict(entries: Entry[]) {
@@ -36,8 +37,11 @@ function sortByVerdict(entries: Entry[]) {
 
 function SpotList({ entries, topPickId }: { entries: Entry[]; topPickId?: string }) {
   return (
-    <div className="flex flex-col gap-2.5">
-      {entries.map(({ spot, verdict, levelTags, swellDirection, summary }, i) => (
+    // 1 columna en celular (el uso principal), 2-3 en pantallas anchas — la
+    // lista completa son 12 spots, en desktop una sola columna desperdicia
+    // la pantalla y obliga a scrollear de mas.
+    <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+      {entries.map(({ spot, verdict, levelTags, swellDirection, summary, seccion }, i) => (
         <SpotCard
           key={spot.id}
           spot={spot}
@@ -45,6 +49,7 @@ function SpotList({ entries, topPickId }: { entries: Entry[]; topPickId?: string
           levelTags={levelTags}
           swellDirection={swellDirection}
           summary={summary}
+          seccion={seccion}
           index={i}
           topPick={spot.id === topPickId}
         />
@@ -140,7 +145,17 @@ export default async function Home({ searchParams }: PageProps) {
       const verdict = evaluate(spot, conditions, tide)
       const tags = computeLevelTags(spot, breaking, beginnerPick.spotId)
       const summary = plainSummary(breaking, conditions.swell.period, conditions.wind.speed)
-      return { spot, verdict, levelTags: tags, swellDirection: conditions.swell.direction, summary }
+      // La seccion (point vs interna) solo aplica a la Costa Verde, que es
+      // donde el usuario describio la regla.
+      const sec = spot.region === 'costa-verde' ? computeSeccion(breaking) : undefined
+      return {
+        spot,
+        verdict,
+        levelTags: tags,
+        swellDirection: conditions.swell.direction,
+        summary,
+        seccion: sec,
+      }
     }),
   )
 
@@ -153,27 +168,31 @@ export default async function Home({ searchParams }: PageProps) {
   })
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-16 pt-8">
-      <header className="mb-6">
-        <p className="text-xs uppercase tracking-widest text-[var(--ink-muted)]">
-          {dayLabel(selectedDay, todayYmd)} · {selectedSlot}
-          <span className="ml-2 normal-case tracking-normal opacity-70">(hora actual {nowLabel})</span>
-        </p>
-        <div className="flex items-center justify-between">
-          <h1 className="font-display text-2xl italic">¿Hay Olas?</h1>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/semana"
-              className="rounded-full px-2.5 py-1 text-xs font-medium"
-              style={{ background: 'var(--bg-raised)', color: 'var(--ink-muted)', border: '1px solid var(--line)' }}
-            >
-              semana →
-            </Link>
-            <InfoDrawer />
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-16 pt-8 md:max-w-5xl md:px-6">
+      {/* En desktop el titulo y la marea van lado a lado en vez de apilados:
+          la curva no necesita todo el ancho y asi el contenido arranca antes. */}
+      <header className="mb-6 md:flex md:items-end md:justify-between md:gap-10">
+        <div className="md:shrink-0">
+          <p className="text-xs uppercase tracking-widest text-[var(--ink-muted)]">
+            {dayLabel(selectedDay, todayYmd)} · {selectedSlot}
+            <span className="ml-2 normal-case tracking-normal opacity-70">(hora actual {nowLabel})</span>
+          </p>
+          <div className="flex items-center justify-between gap-3 md:justify-start">
+            <h1 className="font-display text-2xl italic md:text-3xl">surfReport Lima</h1>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/semana"
+                className="rounded-full px-2.5 py-1 text-xs font-medium"
+                style={{ background: 'var(--bg-raised)', color: 'var(--ink-muted)', border: '1px solid var(--line)' }}
+              >
+                semana →
+              </Link>
+              <InfoDrawer />
+            </div>
           </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 w-full md:mt-0 md:max-w-lg">
           {sparkline ? (
             <TideSparkline
               points={sparkline.points}

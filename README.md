@@ -1,11 +1,9 @@
-# ¿Hay Olas?
+# surfReport Lima
 
 App personal de reporte de surf para Lima, Perú. Recomienda a qué playa ir según
 las condiciones — con un score único (tamaño + orden de la ola) y etiquetas de
 nivel aparte, para que sirva tanto para decidir un pico de avanzado como para
 elegir la playa de la escuela de surf de los chicos.
-
-(Nombre de paquete/repo: `hay-olas` / `surfReport` — ver `CLAUDE.md`.)
 
 - Contexto y decisiones de arquitectura → [`CLAUDE.md`](CLAUDE.md)
 - Hoja de ruta y hallazgos de las APIs → [`docs/PLAN.md`](docs/PLAN.md)

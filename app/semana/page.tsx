@@ -27,13 +27,13 @@ export default async function Semana() {
   const byTime = new Map(hourly.map((c) => [c.time, c]))
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-16 pt-8">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-16 pt-8 md:max-w-3xl md:px-6">
       <header className="mb-6">
         <Link href="/" className="text-xs text-[var(--ink-muted)]">
           ← volver al detalle
         </Link>
-        <h1 className="font-display text-2xl italic">La semana</h1>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+        <h1 className="font-display text-2xl italic md:text-3xl">La semana</h1>
+        <p className="mt-1 max-w-prose text-sm text-[var(--ink-muted)]">
           Tamaño y periodo del swell en la costa de Lima en general — no por playa. Tocá una celda
           para ver el detalle de esa franja.
         </p>
@@ -64,13 +64,17 @@ export default async function Semana() {
                     <td key={slot} className="text-center">
                       <Link
                         href={`/?day=${ymd}&slot=${slot}`}
-                        className="flex flex-col items-center rounded-md px-1 py-1.5 tabular-nums"
+                        className="flex flex-col items-center rounded-md px-1 py-1.5 tabular-nums md:py-3"
                         style={band ? { background: band.bg, color: band.color } : undefined}
                       >
                         {c ? (
                           <>
-                            <span className="text-sm font-semibold">{c.swell.height.toFixed(1)}m</span>
-                            <span className="text-[10px] opacity-80">{Math.round(c.swell.period)}s</span>
+                            <span className="text-sm font-semibold md:text-base">
+                              {c.swell.height.toFixed(1)}m
+                            </span>
+                            <span className="text-[10px] opacity-80 md:text-xs">
+                              {Math.round(c.swell.period)}s
+                            </span>
                           </>
                         ) : (
                           <span className="text-xs text-[var(--ink-muted)]">—</span>

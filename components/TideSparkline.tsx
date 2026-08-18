@@ -10,8 +10,14 @@ type Props = {
 }
 
 const WIDTH = 320
-const HEIGHT = 56
-const PAD_Y = 8
+const HEIGHT = 68
+const CURVE_TOP = 8
+const CURVE_BOTTOM = 50
+const AXIS_Y = 64
+
+// Horas rotuladas en el eje. Sin esto la curva no dice a que hora pasa cada
+// cosa — solo se veia "sube y baja" sin referencia.
+const HOUR_TICKS = [0, 6, 12, 18, 24]
 
 function formatHour(iso: string) {
   return new Date(iso).toLocaleTimeString('es-PE', {
@@ -34,9 +40,12 @@ export function TideSparkline({ points, markHour, markHeight, markLabel, upcomin
   const max = Math.max(...heights)
   const range = max - min || 1
 
+  const hoursSpan = points.length - 1
+  const hourToX = (hour: number) => (hour / hoursSpan) * WIDTH
+
   const toXY = (hourFraction: number, h: number) => {
-    const x = (hourFraction / (points.length - 1)) * WIDTH
-    const y = PAD_Y + (1 - (h - min) / range) * (HEIGHT - PAD_Y * 2)
+    const x = hourToX(hourFraction)
+    const y = CURVE_TOP + (1 - (h - min) / range) * (CURVE_BOTTOM - CURVE_TOP)
     return [x, y] as const
   }
 
@@ -57,9 +66,32 @@ export function TideSparkline({ points, markHour, markHeight, markLabel, upcomin
         role="img"
         aria-label={`Marea ${markLabel} ${markHeight.toFixed(2)} metros`}
       >
+        {HOUR_TICKS.slice(1, -1).map((hour) => (
+          <line
+            key={hour}
+            x1={hourToX(hour)}
+            x2={hourToX(hour)}
+            y1={CURVE_TOP - 4}
+            y2={CURVE_BOTTOM + 4}
+            stroke="var(--line)"
+            strokeWidth="0.75"
+          />
+        ))}
         <path d={path} fill="none" stroke="var(--tide-line)" strokeWidth="1.5" strokeLinecap="round" />
         <circle cx={markX} cy={markY} r="3.5" fill="var(--accent)" />
         <circle cx={markX} cy={markY} r="7" fill="var(--accent)" opacity="0.18" />
+        {HOUR_TICKS.map((hour, i) => (
+          <text
+            key={hour}
+            x={hourToX(hour)}
+            y={AXIS_Y}
+            fontSize="8"
+            fill="var(--ink-muted)"
+            textAnchor={i === 0 ? 'start' : i === HOUR_TICKS.length - 1 ? 'end' : 'middle'}
+          >
+            {String(hour % 24).padStart(2, '0')}h
+          </text>
+        ))}
       </svg>
       <div className="flex justify-between text-xs text-[var(--ink-muted)] tabular-nums">
         <span>

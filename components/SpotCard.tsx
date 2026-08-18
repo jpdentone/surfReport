@@ -8,6 +8,7 @@ export function SpotCard({
   levelTags,
   swellDirection,
   summary,
+  seccion,
   index,
   topPick = false,
 }: {
@@ -16,6 +17,7 @@ export function SpotCard({
   levelTags: Level[]
   swellDirection?: number
   summary?: string
+  seccion?: 'point' | 'interna'
   index: number
   topPick?: boolean
 }) {
@@ -58,7 +60,17 @@ export function SpotCard({
         )}
       </div>
 
-      {ok && summary && <p className="text-sm font-medium">{summary}</p>}
+      {ok && summary && (
+        <p className="text-sm font-medium">
+          {summary}
+          {seccion && (
+            <span className="font-normal text-[var(--ink-muted)]">
+              {' · '}
+              {seccion === 'point' ? 'el point' : 'sección interna'}
+            </span>
+          )}
+        </p>
+      )}
 
       {swellDirection !== undefined && <SwellDirection degrees={swellDirection} />}
 

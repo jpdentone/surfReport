@@ -372,6 +372,30 @@ funcionaron, correcciones de la escuela, gates ajustados.
   picada" con el swell grande de hoy), drawer abre/cierra bien, tabla de
   semana con degradado de colores correcto (swell bajando de ~2.3m hoy a
   ~0.9m el lunes, consistente con el patrón real que se viene observando).
+- **2026-08-18** — **Exposicion direccional + modelo de salida.** Dos
+  cambios grandes, ambos originados en conocimiento del usuario:
+  1. `exposure` (numero fijo) → `facing` + `exposurePeak`, con atenuacion
+     por angulo `(0.5+0.5·cosΔ)^1.5`. El `facing` de las 12 playas se
+     **calculo de la geometria real de costa de OpenStreetMap** (Overpass
+     API), no a ojo — ver docs/SPOTS.md. Esto arregla que Barranquito y
+     Delfines tuvieran exposure identico y el modelo no pudiera
+     distinguirlos.
+  2. Nueva propiedad `Spot.salida` (`channel` | `suave` | `cierra`): lo que
+     decide si un chico la pasa bien no es el tamaño sino si puede volver.
+     En spots `cierra` la etiqueta de principiante solo sale con mar chico.
+  Ademas: seccion point vs interna calculada por tamaño y mostrada en la
+  card; Punta Roquitas y 3 Picos unificadas; umbrales de la cadena
+  recalibrados (FLAT_MAX 0.25→0.35, BIG_MIN 1.1→1.25); coordenadas de
+  Delfines y Makaha corregidas (caian tierra adentro).
+  **Verificado contra 3 hechos reales**: mañana la escuela va a Barranquito
+  seccion interna (modelo: Barranquito 0.8m, interna ✅); domingo descartan
+  Barranquito y dudan Redondo/Delfines (modelo: Barranquito flat, Redondo
+  0.46 vs Delfines 0.44 ✅); y con mar chico todo marca "el point" ✅.
+- **2026-08-18** — **Revertido el rename**: el usuario pidió volver a
+  "surfReport Lima" el mismo día. Título, h1, README, CLAUDE.md y
+  `package.json` (de vuelta a `surfreport`) restaurados. La entrada de abajo
+  queda como historial de lo que se probó — no reintroducir "¿Hay Olas?"
+  sin que el usuario lo pida.
 - **2026-08-18** — Renombrada la app (nombre visible, no el repo/paquete):
   **"¿Hay Olas?"**. Se probaron varias opciones (surfReport Lima sonaba
   generico); el usuario eligio esta. Cambiado en `app/layout.tsx`

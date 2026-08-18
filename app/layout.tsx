@@ -15,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "¿Hay Olas? — Lima",
+  title: "surfReport — Lima",
   description: "A que playa ir hoy, segun el nivel de cada quien.",
 };
 

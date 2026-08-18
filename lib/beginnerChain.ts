@@ -23,8 +23,12 @@
 
 export const BEGINNER_CHAIN_SPOT_IDS = ['barranquito', 'redondo', 'delfines', 'ala-moana'] as const
 
-const FLAT_MAX = 0.25 // m — por debajo de esto no hay ola para pararse
-const BIG_MIN = 1.1 // m — por encima de esto ya es grande para principiantes/ninos
+// Recalibrados 2026-08-18 contra dos observaciones reales de la escuela
+// (ver docs/SPOTS.md): mañana 19-ago van a Barranquito, y el domingo 23
+// Barranquito queda descartado y dudan entre Redondo y Delfines. Con la
+// exposicion direccional nueva, estos dos valores reproducen ambos casos.
+const FLAT_MAX = 0.35 // m — por debajo de esto no hay ola para pararse
+const BIG_MIN = 1.25 // m — por encima de esto ya es grande para principiantes/ninos
 
 export type BeginnerPick =
   | { spotId: string; reason: 'ok' }

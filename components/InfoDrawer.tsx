@@ -53,7 +53,9 @@ export function InfoDrawer() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
+        // Bottom sheet en celular (se alcanza con el pulgar), modal centrado
+        // en desktop — un panel que sube desde abajo se siente raro con mouse.
+        <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
           <button
             aria-label="Cerrar"
             onClick={() => setOpen(false)}
@@ -64,10 +66,10 @@ export function InfoDrawer() {
             role="dialog"
             aria-modal="true"
             aria-label="Qué significan estos datos"
-            className="rise-in relative w-full max-w-md rounded-t-2xl px-5 pb-8 pt-4"
+            className="rise-in relative max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl px-5 pb-8 pt-4 md:max-w-lg md:rounded-2xl md:pb-6 md:shadow-xl"
             style={{ background: 'var(--bg-raised)', animationDuration: '0.25s' }}
           >
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full" style={{ background: 'var(--line)' }} />
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full md:hidden" style={{ background: 'var(--line)' }} />
             <div className="flex items-center justify-between">
               <h2 className="font-display text-lg">Qué significa esto</h2>
               <button

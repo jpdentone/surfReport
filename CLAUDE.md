@@ -1,12 +1,11 @@
-# ¿Hay Olas?
+# surfReport Lima
 
 App personal de reporte de surf para Lima, Perú. Uso familiar: recomienda a qué
 playa ir según las condiciones **y según el nivel de cada surfista**.
 
-Nombre visible de la app: **"¿Hay Olas?"** (decidido 2026-08-18). El repo, el
-`package.json` (`hay-olas`) y algunas referencias históricas en `docs/PLAN.md`
-todavía dicen "surfReport" — es el nombre de trabajo original, no hace falta
-renombrar la carpeta del repo ni reescribir la bitácora por esto.
+Nombre visible de la app: **"surfReport Lima"**. El 2026-08-18 se probó
+renombrarla a "¿Hay Olas?" y el usuario decidió volver atrás el mismo día —
+no reintroducir ese nombre sin que lo pida.
 
 Dos perfiles reales de uso, en la MISMA lista (sin toggle de nivel — ver
 decisión #2 reescrita):
