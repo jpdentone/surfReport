@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+/*
+ * Paleta: garúa limeña — el cielo gris-plomo y el mar frio de Lima, no un
+ * tema de surf tropical generico. Acento "boya" (naranja de baliza costera)
+ * para lo que merece atencion; verde musgo / rojo arcilla para veredictos,
+ * a proposito distintos del acento para que "bueno/malo" nunca se confunda
+ * con "destacado".
+ */
+:root {
+  --bg: #e7ebea;
+  --bg-raised: #f5f7f6;
+  --ink: #16242e;
+  --ink-muted: #5b6b72;
+  --line: #c7d0ce;
+  --accent: #d8572b;
+  --go: #3f6b52;
+  --go-bg: #e4ede6;
+  --stop: #a8402c;
+  --stop-bg: #f3e4df;
+  --tide-line: #1b2b38;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1a22;
+    --bg-raised: #16262f;
+    --ink: #e7ebea;
+    --ink-muted: #93a3a8;
+    --line: #2a3a42;
+    --accent: #e8703e;
+    --go: #6fa383;
+    --go-bg: #17281f;
+    --stop: #d9765c;
+    --stop-bg: #2b1912;
+    --tide-line: #7fa8b8;
+  }
+}
+
+@theme inline {
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+}
+
+* {
+  border-color: var(--line);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display), ui-serif, serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.4s ease-out backwards;
+}

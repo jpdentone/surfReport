@@ -59,20 +59,27 @@ Agua Dulce   -> -12.208,-77.042 | 2.52m 10.55s | 21.2C
 ```
 Idénticos. Ver `CLAUDE.md` → "Punto crítico sobre los datos".
 
-### Mareas — NO están en Open-Meteo
-Tres opciones, en orden de preferencia:
+### Mareas — resuelto con datos oficiales de DIHIDRONAV (18-ago-2026)
 
-1. **Precalcular desde constituyentes armónicas** (recomendado). La marea es
-   astronomía: se genera un JSON estático con años de datos, precisión ~10 cm,
-   más que suficiente. En Lima no hay marejadas de tormenta que descuadren el
-   pronóstico. Elimina la única dependencia de API key del proyecto.
-   Fuente de constituyentes: DIHIDRONAV (Marina de Guerra del Perú), tablas
-   oficiales del Callao. Resolver con `pytides` (script one-shot en Python).
-2. **Stormglass.io** `/tide/extremes/point` — free tier 10 req/día, pero acepta
-   rango de fechas, así que **1 llamada/día trae la semana**. Requiere key →
-   obliga a Route Handler server-side. Buen punto de partida si el precálculo se
-   complica.
-3. **WorldTides.info** — tier gratuito limitado. Última opción.
+**Actualización: DIHIDRONAV no publica constituyentes armónicas** (verificado
+con WebFetch a su portal) — son datos propietarios que no comparten
+públicamente. Lo que sí publican, sin necesidad de key ni scraping de
+terceros, es el PDF mensual ya calculado:
+
+```
+https://www.dhn.mil.pe/portal/pdf-tabla-marea/CALLAO
+```
+
+Este endpoint devuelve siempre el **mes corriente** (probado el 18-ago-2026,
+devolvió agosto 2026 completo: 31 días × 4 extremos). Se parseó con `pypdf` y
+se guardó en `data/tides-callao-2026-08.json`. `lib/tide.ts` interpola entre
+esos extremos con una curva cosenoidal — mucho más confiable que constituyentes
+inventadas, aunque menos preciso que un análisis armónico real minuto a minuto.
+
+**Limitación activa: la data cubre solo agosto 2026.** Refrescar mensualmente
+bajando el PDF del mes y repitiendo el parseo (ver Fase 2). Descartadas por
+ahora las alternativas con API key (Stormglass, WorldTides) — no hacen falta
+mientras el refresco manual mensual sea viable.
 
 **Una sola estación (Callao) cubre todo el litoral de Lima.** De Ancón a Cerro
 Azul el desfase es de minutos. No se necesita marea por spot: se necesita *una*
@@ -144,35 +151,89 @@ Guardar solo "marea: 0.8m" es el error clásico. Importa:
 ## 3. Fases
 
 ### Fase 0 — Scaffold
-- [ ] `create-next-app` (App Router, TypeScript, Tailwind)
-- [ ] Estructura: `lib/` (lógica pura), `app/` (UI), `data/` (spots, marea)
+- [x] `create-next-app` (App Router, TypeScript, Tailwind) — puerto **3010**
+      (3000 lo usa otro proyecto local, hatlab)
+- [x] Estructura: `lib/` (lógica pura), `app/` (UI), `data/` (spots)
 - [ ] Deploy vacío a Vercel para confirmar el pipeline end-to-end
-- [ ] `.env.example` (aunque idealmente termine sin secrets)
+- [ ] `.env.example` (aún sin secrets — marea quedó sin API key, ver Fase 2)
 
 ### Fase 1 — Capa de datos
-- [ ] `lib/openMeteo.ts`: fetch de marine + wind, tipado, `revalidate: 3600`
-- [ ] Normalizar ambas respuestas a un solo `Conditions` por hora
-- [ ] Verificar y corregir las coordenadas de cada spot (ver gotchas arriba)
-- [ ] `data/spots.ts` con valores iniciales a ojo — se afinan después
+- [x] `lib/openMeteo.ts`: fetch de marine + wind, tipado, `revalidate: 3600`
+- [x] Normalizar ambas respuestas a un solo `Conditions` por hora
+- [ ] Verificar y corregir las coordenadas de cada spot (siguen con ⚠️ en
+      `docs/SPOTS.md` — probado que funcionan, no que sean la celda óptima)
+- [x] `data/spots.ts` con valores iniciales a ojo — pendiente afinar con la
+      escuela (ver `docs/SPOTS.md`)
 
 ### Fase 2 — Marea
-- [ ] Decidir: precálculo armónico vs Stormglass (arrancar por lo que desbloquee)
-- [ ] Si precálculo: script Python one-shot → `data/tides-callao.json`
-- [ ] `lib/tide.ts`: dado un timestamp → `{ height, trend, nextExtremeIn }`
+- [x] **Reemplazado el modelo inventado por datos oficiales reales.**
+      DIHIDRONAV no publica constituyentes armónicas (confirmado — son
+      propietarias), pero sí publica PDFs mensuales con pleamar/bajamar ya
+      calculados: `https://www.dhn.mil.pe/portal/pdf-tabla-marea/CALLAO`.
+      Se bajó el PDF de agosto 2026, se parseó (120 extremos) y se guardó en
+      `data/tides-callao-2026-08.json`.
+- [x] `lib/tide.ts`: interpola con curva cosenoidal entre extremos reales
+      consecutivos (curva suave estándar entre pleamar y bajamar). Verificado
+      contra los propios extremos del PDF: en el timestamp exacto de un
+      extremo, la interpolación devuelve la altura publicada.
+- [x] `getTideAt`/`getTideSeries` — dan `{ height, trend }`. `trend` sale de
+      comparar contra el siguiente extremo (confiable, no aproximado).
+- [ ] ⚠️ **Cobertura de datos: solo agosto 2026.** Fuera de ese rango
+      `getTideAt` tira un error explícito (no inventa un número). Para seguir
+      usando la app en septiembre hay que repetir el proceso: bajar el PDF de
+      ese mes desde la misma URL (el endpoint siempre devuelve el mes
+      corriente) y parsearlo — es manual por ahora, ver TODO abajo.
+- [ ] Automatizar el refresco mensual. **Probado (18-ago-2026): el endpoint
+      IGNORA parámetros de mes/año** (`?mes=09`, `/09/2026`, etc. — mismo
+      PDF de agosto siempre, byte a byte). No hay archivo navegable ni forma
+      de traer meses futuros por adelantado. Solo trae "el mes corriente".
+      Decisión: no automatizar todavía (septiembre está a ~2 semanas, UI
+      pesa más ahora). Cuando se retome, la opción real es un cron mensual
+      en Vercel que repita el proceso (bajar PDF del mes corriente + parsear
+      + sobreescribir JSON) — portar el parser de `pypdf` a JS/TS
+      (`pdf-parse` o similar). Alternativa sin cron: refresco manual mensual
+      (repetir lo hecho hoy, ~5 min).
+- [ ] `nextExtremeIn` (cuánto falta para el próximo extremo) — no
+      implementado, aunque con los extremos reales ya cargados es trivial
+      agregarlo (`extremes[i+1].time - now`).
 
 ### Fase 3 — Scoring (el corazón)
-- [ ] `lib/scoring.ts`, funciones puras, cero imports de React
-- [ ] `evaluate(spot, conditions, level): Verdict`
-- [ ] Gates duros primero (early return con razón legible), score después
-- [ ] Tests unitarios con casos reales — incluir el caso 14-ago vs 18-ago (abajo)
+- [x] `lib/scoring.ts`, funciones puras, cero imports de React
+- [x] `evaluate(spot, conditions, tide, level): Verdict`
+- [x] Gates duros primero (early return con razón legible), score después
+- [x] Verificado a mano contra el caso 14-ago vs 18-ago (abajo) — pasa:
+      14-ago (14.2s) puntúa 84 vs 18-ago (10.15s) puntúa 82 para advanced;
+      ambos días vetados para kid-beginner por tamaño. Correcto.
+- [ ] **Falta formalizar como test automatizado** (vitest o similar) —
+      la verificación de arriba fue un script one-off, no vive en el repo.
 
 ### Fase 4 — UI
-- [ ] Selector de nivel (persistido en localStorage)
-- [ ] Vista "hoy": playas ordenadas por veredicto, con la razón visible
-- [ ] Vista 7 días, con confianza degradada tras el día 5
-- [ ] Gráfico de olas/marea del día (Recharts o SVG a mano — **no** Chart.js,
-      pesa más y no se lleva bien con SSR)
-- [ ] Mobile-first: el uso real es parado en el malecón mirando si bajar
+- [x] Diseño real implementado (no el placeholder de antes). Dirección:
+      "garúa limeña" — gris-plomo/navy frio, nada de tema de surf tropical
+      generico. Fraunces (display, itálica en el logotipo) + Inter (cuerpo,
+      `tabular-nums` en los datos). Acento coral/"boya" para lo destacado,
+      verde musgo / rojo arcilla para veredictos (deliberadamente distintos
+      del acento).
+- [x] **Elemento distintivo**: sparkline de marea en el header, dibujado a
+      mano en SVG desde los mismos puntos reales de `lib/tide.ts` (no es
+      decorativo — son los datos que alimentan el scoring), con marcador de
+      "ahora" y próximos pleamar/bajamar reales.
+- [x] Selector de nivel (`components/LevelSwitcher.tsx`, cliente), persistido
+      en localStorage (`surfreport:level-group`) — confirmado que sobrevive
+      un refresh de página.
+- [x] Ordenar playas por score descendente dentro de cada grupo; las vetadas
+      quedan al final. Verificado en el navegador (Avanzado: Punta Rocas 66,
+      Punta Hermosa 65, La Herradura 63, Cerro Azul 63).
+- [x] Mobile-first: contenedor `max-w-md` centrado incluso en desktop — a
+      propósito, el uso real es con el celular parado en el malecón.
+      Probado en viewport 375×812 y desktop, light y dark mode.
+- [ ] Vista 7 días, con confianza degradada tras el día 5 — NO implementado.
+      La vista actual es solo "ahora/hoy". Queda para una próxima fase.
+- [ ] Gráfico de olas del día más allá del sparkline de marea (ej. altura de
+      swell por hora) — no implementado.
+- [ ] `nextExtremeIn` en horas/minutos ya viene de `getUpcomingExtremes` pero
+      se muestra como hora del reloj, no como cuenta regresiva — decisión de
+      diseño, no pendiente técnico.
 
 ### Fase 5 — Calibración
 - [ ] Registrar sesiones reales: fecha, playa, "estuvo bueno/malo"
@@ -209,3 +270,35 @@ funcionaron, correcciones de la escuela, gates ajustados.
 - **2026-08-18** — Investigación de APIs y diseño. Verificado Open-Meteo marine
   (10 días) y wind (16 días), `past_days`, y el colapso de la Costa Verde a una
   sola celda. Definida la arquitectura de gates vs score ponderado.
+- **2026-08-18** — Fases 0-3 implementadas (scaffold, capa de datos, marea
+  aproximada, scoring). Corriendo en `localhost:3010` (3000 ocupado por otro
+  proyecto local). Verificado end-to-end con datos reales: hoy el swell viene
+  grande y las 4 playas de la Costa Verde quedaron correctamente vetadas para
+  `kid-beginner` ("ola muy grande"), mientras los picos de avanzado mostraron
+  score. Caso de referencia 14-ago vs 18-ago verificado a mano, pasa.
+  UI sigue siendo un placeholder (dos listas con verde/rojo), a propósito: se
+  decidió esperar a tener scoring antes de invertir en diseño.
+- **2026-08-18** — Marea resuelta con datos reales. DIHIDRONAV no publica
+  constituyentes armónicas (confirmado), pero sí un PDF mensual de
+  pleamar/bajamar ya calculado, sin key: `dhn.mil.pe/portal/pdf-tabla-marea/CALLAO`.
+  Bajado y parseado agosto 2026 completo (120 extremos) →
+  `data/tides-callao-2026-08.json`. `lib/tide.ts` reescrito para interpolar
+  entre esos extremos reales (curva cosenoidal) en vez de usar amplitudes
+  inventadas. Verificado: en el timestamp exacto de un extremo del PDF, la
+  interpolación devuelve la altura publicada. Limitación activa: solo cubre
+  agosto 2026, hay que refrescar el PDF cada mes a mano (ver Fase 2).
+- **2026-08-18** — Probado si el endpoint de DIHIDRONAV acepta parámetros de
+  mes/año (`?mes=09`, `/09/2026`, etc.) para bajar varios meses de una vez.
+  **No los acepta** — devuelve siempre el mismo PDF de agosto, byte a byte
+  idéntico, sin importar el parámetro. No hay archivo navegable. Se decidió
+  no automatizar el refresco todavía (septiembre está a ~2 semanas, prioridad
+  fue la UI) — ver Fase 2 para las opciones cuando se retome.
+- **2026-08-18** — Fase 4 (UI) implementada con dirección de diseño propia
+  ("garúa limeña": gris-plomo/navy, Fraunces + Inter, acento coral, verde/rojo
+  para veredictos). Sparkline de marea real como elemento distintivo del
+  header. Selector de nivel con persistencia en localStorage, verificado que
+  sobrevive refresh. Playas ordenadas por score. Probado en navegador real
+  (mobile 375px, desktop, light y dark mode) — todo funcionando con datos
+  reales de hoy. Build y lint limpios. Pendiente: vista de varios días y
+  gráfico de oleaje por hora (no implementados, la vista actual es solo
+  "hoy").
