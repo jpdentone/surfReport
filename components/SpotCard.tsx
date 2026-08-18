@@ -7,6 +7,7 @@ export function SpotCard({
   verdict,
   levelTags,
   swellDirection,
+  summary,
   index,
   topPick = false,
 }: {
@@ -14,6 +15,7 @@ export function SpotCard({
   verdict: Verdict
   levelTags: Level[]
   swellDirection?: number
+  summary?: string
   index: number
   topPick?: boolean
 }) {
@@ -55,6 +57,8 @@ export function SpotCard({
           </span>
         )}
       </div>
+
+      {ok && summary && <p className="text-sm font-medium">{summary}</p>}
 
       {swellDirection !== undefined && <SwellDirection degrees={swellDirection} />}
 

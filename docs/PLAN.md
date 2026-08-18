@@ -350,6 +350,28 @@ funcionaron, correcciones de la escuela, gates ajustados.
   precision que no tiene. Decision del usuario: mejor no mostrar nada que
   mostrar un numero con falsa precision. NO implementar esto sin volver a
   discutirlo — ver CLAUDE.md.
+- **2026-08-18** — Tres pedidos del usuario (papás/mamás sin experiencia
+  leyendo reportes de surf; vista panorámica tipo ALTAMAR):
+  1. **Frase en lenguaje llano** (`lib/summary.ts` `plainSummary()`):
+     "grande y ordenada", "chica y picada", etc., a partir de altura +
+     periodo + viento — mismos datos que ya alimentan el score, sin costo
+     extra de API. Se muestra arriba de las notas técnicas en cada card.
+  2. **Drawer de glosario** (`components/InfoDrawer.tsx`, cliente): botón
+     ⓘ en el header abre un bottom sheet con 5 términos explicados en
+     criollo (score, periodo, marea "en ventana", etiquetas de nivel,
+     dirección). Cierra con Escape, tap en el fondo, o botón "cerrar".
+  3. **Vista semanal genérica** (`app/semana/page.tsx`), inspirada en el
+     PDF de ALTAMAR pero para toda la costa de Lima, NO por playa (a
+     pedido explícito — "de verdad ago generico no x playa"). Usa un punto
+     de referencia fijo (-12.13,-77.05, el mismo con el que se probó la
+     API al principio del proyecto), tabla 7 días × 5 franjas, coloreada
+     por banda de altura de swell offshore (no la que rompe en cada playa).
+     Cada celda linkea a `/?day=X&slot=Y` para ver el detalle. Quedó
+     pre-renderizada estática (no depende de searchParams).
+  Verificado en navegador: frase visible y coherente ("Muy grande y
+  picada" con el swell grande de hoy), drawer abre/cierra bien, tabla de
+  semana con degradado de colores correcto (swell bajando de ~2.3m hoy a
+  ~0.9m el lunes, consistente con el patrón real que se viene observando).
 - **2026-08-18** — Renombrada la app (nombre visible, no el repo/paquete):
   **"¿Hay Olas?"**. Se probaron varias opciones (surfReport Lima sonaba
   generico); el usuario eligio esta. Cambiado en `app/layout.tsx`

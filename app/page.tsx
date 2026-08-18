@@ -2,19 +2,28 @@ import { getConditions } from '@/lib/openMeteo'
 import { getTideAt, getTideSeries, getUpcomingExtremes } from '@/lib/tide'
 import { breakingHeight, evaluate, levelTags as computeLevelTags } from '@/lib/scoring'
 import { pickBeginnerSpot } from '@/lib/beginnerChain'
+import { plainSummary } from '@/lib/summary'
 import { spots } from '@/data/spots'
 import type { Region, Spot, Verdict } from '@/lib/types'
 import { SLOTS, addDaysYMD, dayLabel, defaultSlot, limaCurrentHour, limaDateTime, limaYMD, type Slot } from '@/lib/dates'
 import { TideSparkline } from '@/components/TideSparkline'
 import { SpotCard } from '@/components/SpotCard'
 import { DaySlotPicker } from '@/components/DaySlotPicker'
+import { InfoDrawer } from '@/components/InfoDrawer'
+import Link from 'next/link'
 
 export const revalidate = 3600
 
 const FORECAST_DAYS = 7
 const LOW_CONFIDENCE_FROM = 5 // dias 6 y 7 (indice 5 y 6): el modelo pierde skill despues del dia 5-7
 
-type Entry = { spot: Spot; verdict: Verdict; levelTags: ReturnType<typeof computeLevelTags>; swellDirection?: number }
+type Entry = {
+  spot: Spot
+  verdict: Verdict
+  levelTags: ReturnType<typeof computeLevelTags>
+  swellDirection?: number
+  summary?: string
+}
 
 function sortByVerdict(entries: Entry[]) {
   return [...entries].sort((a, b) => {
@@ -28,13 +37,14 @@ function sortByVerdict(entries: Entry[]) {
 function SpotList({ entries, topPickId }: { entries: Entry[]; topPickId?: string }) {
   return (
     <div className="flex flex-col gap-2.5">
-      {entries.map(({ spot, verdict, levelTags, swellDirection }, i) => (
+      {entries.map(({ spot, verdict, levelTags, swellDirection, summary }, i) => (
         <SpotCard
           key={spot.id}
           spot={spot}
           verdict={verdict}
           levelTags={levelTags}
           swellDirection={swellDirection}
+          summary={summary}
           index={i}
           topPick={spot.id === topPickId}
         />
@@ -126,9 +136,11 @@ export default async function Home({ searchParams }: PageProps) {
       if (!conditions || !tide) {
         return { spot, verdict: { ok: false, reason: 'sin datos de marea/oleaje' } as const, levelTags: [] }
       }
+      const breaking = breakingHeight(spot, conditions)
       const verdict = evaluate(spot, conditions, tide)
-      const tags = computeLevelTags(spot, breakingHeight(spot, conditions), beginnerPick.spotId)
-      return { spot, verdict, levelTags: tags, swellDirection: conditions.swell.direction }
+      const tags = computeLevelTags(spot, breaking, beginnerPick.spotId)
+      const summary = plainSummary(breaking, conditions.swell.period, conditions.wind.speed)
+      return { spot, verdict, levelTags: tags, swellDirection: conditions.swell.direction, summary }
     }),
   )
 
@@ -147,7 +159,19 @@ export default async function Home({ searchParams }: PageProps) {
           {dayLabel(selectedDay, todayYmd)} · {selectedSlot}
           <span className="ml-2 normal-case tracking-normal opacity-70">(hora actual {nowLabel})</span>
         </p>
-        <h1 className="font-display text-2xl italic">¿Hay Olas?</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="font-display text-2xl italic">¿Hay Olas?</h1>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/semana"
+              className="rounded-full px-2.5 py-1 text-xs font-medium"
+              style={{ background: 'var(--bg-raised)', color: 'var(--ink-muted)', border: '1px solid var(--line)' }}
+            >
+              semana →
+            </Link>
+            <InfoDrawer />
+          </div>
+        </div>
 
         <div className="mt-4">
           {sparkline ? (
