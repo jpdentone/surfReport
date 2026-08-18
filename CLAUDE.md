@@ -1,0 +1,61 @@
+# surfReport
+
+App personal de reporte de surf para Lima, Perú. Uso familiar: recomienda a qué
+playa ir según las condiciones **y según el nivel de cada surfista**.
+
+Dos perfiles reales de uso:
+- Adulto intermedio/avanzado → picos como Punta Rocas, La Herradura, Cerro Azul.
+- Niño de 9 años en escuela de surf + amigos → playas de principiantes de la
+  Costa Verde (Barranquito, Redondo, Makaha/Waikiki, Agua Dulce).
+
+> El plan completo está en `docs/PLAN.md`. El conocimiento local por playa
+> (lo que no viene de ninguna API) se captura en `docs/SPOTS.md`.
+
+## Stack
+
+- Next.js (App Router) + TypeScript + Tailwind
+- Deploy en Vercel (plan Hobby — permite múltiples proyectos gratis)
+- Sin base de datos, sin auth, sin librería de estado global
+- Los spots viven en un archivo `.ts`, no en una DB
+
+## Decisiones de arquitectura (no revertir sin discutir)
+
+1. **La lógica de scoring vive en `lib/`, como funciones puras.** Separada de
+   todo componente React. Se va a ajustar durante meses según lo observado en el
+   agua; tiene que ser testeable sin levantar UI.
+
+2. **Para principiantes se usan gates duros (veto), no promedio ponderado.**
+   Con una suma ponderada, marea y viento perfectos pueden outvotar
+   numéricamente el hecho de que hay 2m de ola. Para un niño eso no es
+   aceptable. El veto no negocia con puntos. Para nivel avanzado sí se usa
+   score ponderado.
+
+3. **El score se invierte según nivel.** Periodo largo y altura son ✅ para
+   avanzado y ❌ para principiante. No existe una sola escala de "bueno".
+
+4. **Cada spot necesita un coeficiente `exposure`.** La API entrega swell
+   offshore; hay que atenuarlo por refracción/abrigo para estimar la ola que
+   realmente rompe en cada playa. Ver punto crítico abajo.
+
+5. **El periodo pesa más que la altura.** Rankear por altura manda al agua el
+   día equivocado.
+
+6. **La marea se precalcula, no se consulta.** Es astronomía, no clima.
+
+## Punto crítico sobre los datos
+
+**La Marine API no distingue entre las playas de la Costa Verde.** Verificado:
+Barranquito, Redondo, Makaha y Agua Dulce devuelven todos la misma celda de
+grilla (`-12.208,-77.042`), con valores idénticos. Están a 2-6 km entre sí y el
+modelo global las ve como un solo punto.
+
+Consecuencia: **la diferenciación entre playas NO puede venir de la API.** Viene
+100% del config local en `docs/SPOTS.md` (exposición, fondo, abrigo, ventana de
+marea). Ahí está el valor real de esta app.
+
+## Alcance / límites
+
+- Es una herramienta de *"probablemente hoy toca Barranquito"*, no un semáforo
+  de seguridad. Con el niño, la decisión final es del instructor que está
+  mirando el agua. No presentar la app como autoridad de seguridad.
+- Uso personal y no comercial (requisito del plan Hobby de Vercel).
