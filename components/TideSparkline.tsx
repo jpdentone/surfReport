@@ -2,8 +2,10 @@ import type { TidePoint } from '@/lib/types'
 import type { UpcomingExtreme } from '@/lib/tide'
 
 type Props = {
-  points: TidePoint[] // serie horaria, la primera es "ahora"
-  nowHeight: number
+  points: TidePoint[] // serie horaria de un dia, empieza a las 00:00
+  markHour: number // 0-23, la hora que se esta marcando (franja seleccionada)
+  markHeight: number
+  markLabel: string // ej. "hoy 09:00" o "ahora"
   upcoming: UpcomingExtreme[]
 }
 
@@ -26,14 +28,14 @@ function formatHour(iso: string) {
  * mismos puntos que alimentan el scoring. Es la pieza que hace que este
  * reporte diga algo que ningun pronostico generico dice.
  */
-export function TideSparkline({ points, nowHeight, upcoming }: Props) {
+export function TideSparkline({ points, markHour, markHeight, markLabel, upcoming }: Props) {
   const heights = points.map((p) => p.height)
   const min = Math.min(...heights)
   const max = Math.max(...heights)
   const range = max - min || 1
 
-  const toXY = (i: number, h: number) => {
-    const x = (i / (points.length - 1)) * WIDTH
+  const toXY = (hourFraction: number, h: number) => {
+    const x = (hourFraction / (points.length - 1)) * WIDTH
     const y = PAD_Y + (1 - (h - min) / range) * (HEIGHT - PAD_Y * 2)
     return [x, y] as const
   }
@@ -45,7 +47,7 @@ export function TideSparkline({ points, nowHeight, upcoming }: Props) {
     })
     .join(' ')
 
-  const [nowX, nowY] = toXY(0, nowHeight)
+  const [markX, markY] = toXY(markHour, markHeight)
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -53,15 +55,15 @@ export function TideSparkline({ points, nowHeight, upcoming }: Props) {
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
         role="img"
-        aria-label={`Marea actual ${nowHeight.toFixed(2)} metros`}
+        aria-label={`Marea ${markLabel} ${markHeight.toFixed(2)} metros`}
       >
         <path d={path} fill="none" stroke="var(--tide-line)" strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx={nowX} cy={nowY} r="3.5" fill="var(--accent)" />
-        <circle cx={nowX} cy={nowY} r="7" fill="var(--accent)" opacity="0.18" />
+        <circle cx={markX} cy={markY} r="3.5" fill="var(--accent)" />
+        <circle cx={markX} cy={markY} r="7" fill="var(--accent)" opacity="0.18" />
       </svg>
       <div className="flex justify-between text-xs text-[var(--ink-muted)] tabular-nums">
         <span>
-          ahora <span className="text-[var(--ink)] font-medium">{nowHeight.toFixed(2)}m</span>
+          {markLabel} <span className="text-[var(--ink)] font-medium">{markHeight.toFixed(2)}m</span>
         </span>
         {upcoming.map((e) => (
           <span key={e.time}>

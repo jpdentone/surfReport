@@ -227,8 +227,18 @@ Guardar solo "marea: 0.8m" es el error clásico. Importa:
 - [x] Mobile-first: contenedor `max-w-md` centrado incluso en desktop — a
       propósito, el uso real es con el celular parado en el malecón.
       Probado en viewport 375×812 y desktop, light y dark mode.
-- [ ] Vista 7 días, con confianza degradada tras el día 5 — NO implementado.
-      La vista actual es solo "ahora/hoy". Queda para una próxima fase.
+- [x] **Vista 7 días × 5 franjas horarias (06/09/12/15/18)**, inspirada en
+      el PDF que la escuela manda de noche por WhatsApp (ALTAMAR — altura
+      significante, periodo, dirección, mañana/tarde). Se decidió mostrar un
+      día/franja a la vez (no la tabla completa) para que funcione bien en
+      celular. Selector 100% server-side vía query params
+      (`?day=YYYY-MM-DD&slot=HH:MM`, ver `components/DaySlotPicker.tsx` y
+      `lib/dates.ts`) — sin JS de cliente, bookmarkable/compartible
+      ("mandame el link de mañana 15:00"). El sparkline de marea del header
+      ahora sigue el día/franja seleccionada (antes solo mostraba "ahora").
+      Confianza degradada con nota visual a partir del día 6 (índice 5),
+      como estaba planeado. Probado en navegador: cambio de día, de franja,
+      y de nivel (Escuela/Avanzado) todos funcionando con datos reales.
 - [ ] Gráfico de olas del día más allá del sparkline de marea (ej. altura de
       swell por hora) — no implementado.
 - [ ] `nextExtremeIn` en horas/minutos ya viene de `getUpcomingExtremes` pero
@@ -293,6 +303,15 @@ funcionaron, correcciones de la escuela, gates ajustados.
   idéntico, sin importar el parámetro. No hay archivo navegable. Se decidió
   no automatizar el refresco todavía (septiembre está a ~2 semanas, prioridad
   fue la UI) — ver Fase 2 para las opciones cuando se retome.
+- **2026-08-18** — El usuario compartió una captura de lo que la escuela
+  manda por WhatsApp de noche: un PDF de ALTAMAR con altura/periodo/dirección
+  por AM/PM para 8 días, codificado por color. Pidió algo similar pero con
+  mas granularidad horaria (06/09/12/15/18). Se implementó una vista de
+  día+franja (no tabla completa, por mobile) reutilizando los mismos datos
+  horarios de Open-Meteo que ya se pedían — sin cambios en la capa de datos,
+  solo en cómo se navega la misma información. Diferencia clave respecto al
+  PDF de la escuela: en vez de mostrar altura de ola offshore genérica, cada
+  celda ya resuelve "cuál playa conviene" usando el scoring existente.
 - **2026-08-18** — Corrección posterior: el usuario marcó que "cerrado" en
   Barranquito por marea baja (0.21m < 0.4m) estaba mal — pedido explícito de
   sacar TODO umbral para el grupo escuela, no solo el de peligro real. Se

@@ -3,11 +3,16 @@ import { getTideAt, getTideSeries, getUpcomingExtremes } from '@/lib/tide'
 import { evaluate } from '@/lib/scoring'
 import { spots } from '@/data/spots'
 import type { Level, Spot, Verdict } from '@/lib/types'
+import { SLOTS, addDaysYMD, dayLabel, defaultSlot, limaCurrentHour, limaDateTime, limaYMD, type Slot } from '@/lib/dates'
 import { TideSparkline } from '@/components/TideSparkline'
 import { SpotCard } from '@/components/SpotCard'
 import { LevelSwitcher } from '@/components/LevelSwitcher'
+import { DaySlotPicker } from '@/components/DaySlotPicker'
 
 export const revalidate = 3600
+
+const FORECAST_DAYS = 7
+const LOW_CONFIDENCE_FROM = 5 // dias 6 y 7 (indice 5 y 6): el modelo pierde skill despues del dia 5-7
 
 function pickLevel(spot: Spot, preferred: Level, fallback: Level): Level {
   return spot.levels.includes(preferred) ? preferred : fallback
@@ -41,23 +46,37 @@ function SpotList({ entries, markTopPick = false }: { entries: Entry[]; markTopP
   )
 }
 
-export default async function Home() {
+type PageProps = {
+  searchParams: Promise<{ day?: string; slot?: string }>
+}
+
+export default async function Home({ searchParams }: PageProps) {
   const now = new Date()
-  const today = new Date(now)
-  today.setMinutes(0, 0, 0)
+  const todayYmd = limaYMD(now)
+  const days = Array.from({ length: FORECAST_DAYS }, (_, i) => addDaysYMD(todayYmd, i))
+
+  const sp = await searchParams
+  const selectedDay = days.includes(sp.day ?? '') ? (sp.day as string) : todayYmd
+  const selectedSlot = (SLOTS as readonly string[]).includes(sp.slot ?? '')
+    ? (sp.slot as Slot)
+    : defaultSlot(limaCurrentHour(now))
+
+  const targetDateTime = limaDateTime(selectedDay, selectedSlot)
 
   const bySpot = await Promise.all(
     spots.map(async (spot) => {
-      const conditions = await getConditions(spot.coords.lat, spot.coords.lon, 1)
-      return { spot, conditions: conditions[0] }
+      const hourly = await getConditions(spot.coords.lat, spot.coords.lon, FORECAST_DAYS)
+      const conditions = hourly.find((c) => c.time === `${selectedDay}T${selectedSlot}`)
+      return { spot, conditions }
     }),
   )
 
   let tide
   let sparkline: { points: ReturnType<typeof getTideSeries>; upcoming: ReturnType<typeof getUpcomingExtremes> } | null = null
   try {
-    tide = getTideAt(now)
-    sparkline = { points: getTideSeries(today, 25), upcoming: getUpcomingExtremes(now, 2) }
+    tide = getTideAt(targetDateTime)
+    const startOfSelectedDay = limaDateTime(selectedDay, '00:00')
+    sparkline = { points: getTideSeries(startOfSelectedDay, 25), upcoming: getUpcomingExtremes(targetDateTime, 2) }
   } catch {
     tide = null
   }
@@ -88,29 +107,40 @@ export default async function Home() {
       }),
   )
 
-  const dateLabel = now.toLocaleDateString('es-PE', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'America/Lima',
-  })
+  const markLabel = `${dayLabel(selectedDay, todayYmd).toLowerCase()} ${selectedSlot}`
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-16 pt-8">
       <header className="mb-6">
-        <p className="text-xs uppercase tracking-widest text-[var(--ink-muted)]">{dateLabel}</p>
+        <p className="text-xs uppercase tracking-widest text-[var(--ink-muted)]">
+          {dayLabel(selectedDay, todayYmd)} · {selectedSlot}
+        </p>
         <h1 className="font-display text-2xl italic">surfReport Lima</h1>
 
         <div className="mt-4">
           {sparkline ? (
-            <TideSparkline points={sparkline.points} nowHeight={tide!.height} upcoming={sparkline.upcoming} />
+            <TideSparkline
+              points={sparkline.points}
+              markHour={Number(selectedSlot.slice(0, 2))}
+              markHeight={tide!.height}
+              markLabel={markLabel}
+              upcoming={sparkline.upcoming}
+            />
           ) : (
             <p className="text-sm" style={{ color: 'var(--stop)' }}>
-              Sin datos de marea para hoy — falta refrescar la tabla del mes (ver docs/PLAN.md).
+              Sin datos de marea para esa fecha — falta refrescar la tabla del mes (ver docs/PLAN.md).
             </p>
           )}
         </div>
       </header>
+
+      <DaySlotPicker
+        days={days}
+        todayYmd={todayYmd}
+        selectedDay={selectedDay}
+        selectedSlot={selectedSlot}
+        lowConfidenceFrom={LOW_CONFIDENCE_FROM}
+      />
 
       <LevelSwitcher
         escuela={<SpotList entries={escuela} markTopPick />}
