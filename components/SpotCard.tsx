@@ -6,11 +6,13 @@ export function SpotCard({
   verdict,
   swellDirection,
   index,
+  topPick = false,
 }: {
   spot: Spot
   verdict: Verdict
   swellDirection?: number
   index: number
+  topPick?: boolean
 }) {
   const ok = verdict.ok
 
@@ -22,6 +24,15 @@ export function SpotCard({
         animationDelay: `${index * 40}ms`,
       }}
     >
+      {topPick && (
+        <span
+          className="self-start rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+          style={{ background: 'var(--accent)', color: 'var(--bg-raised)' }}
+        >
+          mejor hoy
+        </span>
+      )}
+
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="font-display text-lg leading-tight">{spot.name}</h3>
         {ok ? (
@@ -36,7 +47,7 @@ export function SpotCard({
             className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
             style={{ background: 'var(--stop-bg)', color: 'var(--stop)' }}
           >
-            no
+            cerrado
           </span>
         )}
       </div>

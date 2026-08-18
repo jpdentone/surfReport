@@ -24,11 +24,18 @@ function sortByVerdict(entries: Entry[]) {
   })
 }
 
-function SpotList({ entries }: { entries: Entry[] }) {
+function SpotList({ entries, markTopPick = false }: { entries: Entry[]; markTopPick?: boolean }) {
   return (
     <div className="flex flex-col gap-2.5">
       {entries.map(({ spot, verdict, swellDirection }, i) => (
-        <SpotCard key={spot.id} spot={spot} verdict={verdict} swellDirection={swellDirection} index={i} />
+        <SpotCard
+          key={spot.id}
+          spot={spot}
+          verdict={verdict}
+          swellDirection={swellDirection}
+          index={i}
+          topPick={markTopPick && i === 0 && verdict.ok}
+        />
       ))}
     </div>
   )
@@ -106,7 +113,7 @@ export default async function Home() {
       </header>
 
       <LevelSwitcher
-        escuela={<SpotList entries={escuela} />}
+        escuela={<SpotList entries={escuela} markTopPick />}
         avanzado={<SpotList entries={avanzado} />}
       />
 

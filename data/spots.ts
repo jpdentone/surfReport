@@ -13,8 +13,8 @@ export const spots: Spot[] = [
     bottom: 'canto-rodado',
     levels: ['kid-beginner', 'beginner'],
     gates: {
-      'kid-beginner': { maxBreakingHeight: 0.6, maxPeriod: 10, minTide: 0.4 },
-      beginner: { maxBreakingHeight: 0.9, maxPeriod: 12, minTide: 0.3 },
+      'kid-beginner': { idealBreakingHeight: 0.6, idealPeriod: 10 },
+      beginner: { idealBreakingHeight: 0.9, idealPeriod: 12 },
     },
     tide: { min: 0.4, max: 1.2 },
   },
@@ -26,8 +26,8 @@ export const spots: Spot[] = [
     bottom: 'canto-rodado',
     levels: ['kid-beginner', 'beginner'],
     gates: {
-      'kid-beginner': { maxBreakingHeight: 0.6, maxPeriod: 10, minTide: 0.5 },
-      beginner: { maxBreakingHeight: 0.9, maxPeriod: 12, minTide: 0.4 },
+      'kid-beginner': { idealBreakingHeight: 0.6, idealPeriod: 10 },
+      beginner: { idealBreakingHeight: 0.9, idealPeriod: 12 },
     },
     tide: { min: 0.5, max: 1.2 },
   },
@@ -39,8 +39,8 @@ export const spots: Spot[] = [
     bottom: 'canto-rodado',
     levels: ['kid-beginner', 'beginner'],
     gates: {
-      'kid-beginner': { maxBreakingHeight: 0.6, maxPeriod: 10, minTide: 0.4 },
-      beginner: { maxBreakingHeight: 0.9, maxPeriod: 12, minTide: 0.3 },
+      'kid-beginner': { idealBreakingHeight: 0.6, idealPeriod: 10 },
+      beginner: { idealBreakingHeight: 0.9, idealPeriod: 12 },
     },
     tide: { min: 0.4, max: 1.2 },
   },
@@ -52,8 +52,8 @@ export const spots: Spot[] = [
     bottom: 'canto-rodado',
     levels: ['kid-beginner', 'beginner'],
     gates: {
-      'kid-beginner': { maxBreakingHeight: 0.6, maxPeriod: 10, minTide: 0.4 },
-      beginner: { maxBreakingHeight: 0.9, maxPeriod: 12, minTide: 0.3 },
+      'kid-beginner': { idealBreakingHeight: 0.6, idealPeriod: 10 },
+      beginner: { idealBreakingHeight: 0.9, idealPeriod: 12 },
     },
     tide: { min: 0.4, max: 1.2 },
   },

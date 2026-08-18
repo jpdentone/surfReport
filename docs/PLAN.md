@@ -293,6 +293,28 @@ funcionaron, correcciones de la escuela, gates ajustados.
   idéntico, sin importar el parámetro. No hay archivo navegable. Se decidió
   no automatizar el refresco todavía (septiembre está a ~2 semanas, prioridad
   fue la UI) — ver Fase 2 para las opciones cuando se retome.
+- **2026-08-18** — Corrección posterior: el usuario marcó que "cerrado" en
+  Barranquito por marea baja (0.21m < 0.4m) estaba mal — pedido explícito de
+  sacar TODO umbral para el grupo escuela, no solo el de peligro real. Se
+  simplificó `Gates` a solo `idealBreakingHeight`/`idealPeriod` (referencia
+  de score, nunca veto) y se quitaron `dangerBreakingHeight`, `dangerPeriod`,
+  `minTide`, `maxWind`. Ahora las 4 playas de la Costa Verde siempre
+  aparecen con veredicto "sí", rankeadas — verificado en navegador con los
+  datos reales de hoy: Barranquito 68 (mejor hoy), Agua Dulce 66, Makaha 65,
+  Redondo 63. Documentado en CLAUDE.md que este punto ya se revisó dos veces
+  y no conviene reintroducir vetos sin discutirlo primero.
+- **2026-08-18** — Cambio de arquitectura en el scoring de principiantes,
+  a pedido: una escuela de surf da clases todos los días (es un negocio),
+  no tiene sentido vetar por "no es ideal". `Gates` ahora separa `ideal*`
+  (resta puntaje si se pasa, no cierra) de `danger*` (peligro real, ahí sí
+  veta). Con el swell de hoy (grande mas no peligroso, ~0.9-1.1m estimado)
+  las 4 playas de la Costa Verde pasaron de "no recomendado por tamaño" a
+  rankeadas con score — pero la marea baja de la tarde SÍ las vetó
+  ("cerrado") por riesgo real de piedras expuestas en canto rodado, que
+  sigue siendo un veto de seguridad genuino, no de calidad. UI: badge de
+  veto ahora dice "cerrado" (no "no"), y la playa #1 del grupo escuela se
+  marca "mejor hoy". Verificado con script: en rango seguro el score baja
+  de 90 a 62 conforme crece la ola, pero nunca cierra.
 - **2026-08-18** — Fase 4 (UI) implementada con dirección de diseño propia
   ("garúa limeña": gris-plomo/navy, Fraunces + Inter, acento coral, verde/rojo
   para veredictos). Sparkline de marea real como elemento distintivo del

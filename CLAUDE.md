@@ -24,11 +24,22 @@ Dos perfiles reales de uso:
    todo componente React. Se va a ajustar durante meses según lo observado en el
    agua; tiene que ser testeable sin levantar UI.
 
-2. **Para principiantes se usan gates duros (veto), no promedio ponderado.**
-   Con una suma ponderada, marea y viento perfectos pueden outvotar
-   numéricamente el hecho de que hay 2m de ola. Para un niño eso no es
-   aceptable. El veto no negocia con puntos. Para nivel avanzado sí se usa
-   score ponderado.
+2. **Para principiantes: SIN umbrales de ningún tipo — siempre se
+   muestran las 4 playas, rankeadas.** Revisado dos veces el 2026-08-18:
+   primero se probó con gates duros (veto por "no es ideal"), después con
+   veto solo por peligro real (`danger*`), y finalmente —a pedido explícito—
+   se sacó todo umbral. La escuela de surf es un negocio y da clases todos
+   los días; ninguna condición por sí sola debe decir "cerrado". `Gates`
+   ahora solo tiene `idealBreakingHeight`/`idealPeriod` como referencia de
+   score (cuanto más lejos de lo ideal, menos puntaje, pero nunca `ok:
+   false`). El objetivo es señalar la MEJOR playa disponible ese día, nunca
+   decir que no hay ninguna. Para nivel avanzado sigue usándose score
+   ponderado sin veto (salvo que el spot no aplique al nivel — eso es
+   config, no condición del mar).
+   ⚠️ Si en el futuro se necesita un veto real de seguridad (ej. una
+   marejada extraordinaria), discutirlo con el usuario antes de
+   reintroducirlo — ya se probó dos veces y se pidió explícitamente
+   sacarlo.
 
 3. **El score se invierte según nivel.** Periodo largo y altura son ✅ para
    avanzado y ❌ para principiante. No existe una sola escala de "bueno".

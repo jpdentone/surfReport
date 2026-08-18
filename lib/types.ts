@@ -3,10 +3,12 @@ export type Level = 'kid-beginner' | 'beginner' | 'intermediate' | 'advanced'
 export type Bottom = 'canto-rodado' | 'arena' | 'reef'
 
 export type Gates = {
-  maxBreakingHeight: number // m
-  maxPeriod: number // s — mas periodo = mas fuerza, peor para novato
-  minTide?: number // gate de seguridad en canto rodado
-  maxWind?: number // km/h
+  // Punto de referencia "comodo para aprender" — mientras mas cerca este
+  // la condicion real de esto, mas alto el score. Sin umbral duro: nunca
+  // cierra la playa por si sola, solo influye el ranking (ver CLAUDE.md,
+  // decision #2 — a pedido, ninguna condicion cierra playas de escuela).
+  idealBreakingHeight: number // m
+  idealPeriod: number // s
 }
 
 export type Spot = {

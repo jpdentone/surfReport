@@ -10,11 +10,15 @@ const BEGINNER_LEVELS: Level[] = ['kid-beginner', 'beginner']
 /**
  * Veredicto de un spot para un nivel dado, en un momento dado.
  *
- * Principiantes (incluye kid-beginner): gates duros. Cualquiera que se
- * incumpla veta el spot sin importar que tan buenos esten los demas
- * factores — ver CLAUDE.md, decision de arquitectura #2.
+ * Principiantes (incluye kid-beginner): la escuela de surf es un negocio,
+ * da clases todos los dias — a pedido, NINGUNA condicion cierra una playa
+ * de este grupo. Siempre se muestran las 4, con un score de que tan comoda
+ * esta la ola para aprender ese dia. `idealBreakingHeight`/`idealPeriod`
+ * son solo referencia para el ranking, no umbrales que vetan — ver
+ * CLAUDE.md, decision #2 (revisada 2 veces: primero gates duros, despues
+ * peligro-real-veta, ahora sin ningun umbral).
  *
- * Intermedio/avanzado: score ponderado, sin vetos automaticos (el
+ * Intermedio/avanzado: mismo espiritu, score ponderado sin vetos (el
  * criterio de que tan grande/fuerte es aceptable lo pone el surfista).
  */
 export function evaluate(
@@ -34,30 +38,28 @@ export function evaluate(
     if (!gates) {
       return { ok: false, reason: `sin gates configurados para ${level}` }
     }
-    if (breaking > gates.maxBreakingHeight) {
-      return {
-        ok: false,
-        reason: `ola muy grande (${breaking.toFixed(1)}m est. > ${gates.maxBreakingHeight}m)`,
-      }
-    }
-    if (conditions.swell.period > gates.maxPeriod) {
-      return {
-        ok: false,
-        reason: `demasiada fuerza para el nivel (periodo ${conditions.swell.period}s > ${gates.maxPeriod}s)`,
-      }
-    }
-    if (gates.minTide !== undefined && tide.height < gates.minTide) {
-      return {
-        ok: false,
-        reason: `marea muy baja, riesgo de piedras expuestas (${tide.height}m < ${gates.minTide}m)`,
-      }
-    }
-    if (gates.maxWind !== undefined && conditions.wind.speed > gates.maxWind) {
-      return { ok: false, reason: `viento fuerte (${conditions.wind.speed}km/h)` }
-    }
 
-    const notes: string[] = [`ola est. ${breaking.toFixed(1)}m`, `marea ${tide.height}m`]
-    return { ok: true, score: 1, notes }
+    const notes: string[] = []
+    let score = 0
+
+    // mientras mas cerca de lo ideal, mejor — decae suave sin cortar en seco
+    const sizeFit = Math.min(gates.idealBreakingHeight / Math.max(breaking, 0.01), 1)
+    score += sizeFit * 45
+    notes.push(`ola est. ${breaking.toFixed(1)}m`)
+
+    const periodFit = Math.min(gates.idealPeriod / Math.max(conditions.swell.period, 0.01), 1)
+    score += periodFit * 25
+    notes.push(`periodo ${conditions.swell.period}s`)
+
+    const windFit = 1 - Math.min(conditions.wind.speed / 30, 1)
+    score += windFit * 15
+    notes.push(`viento ${conditions.wind.speed}km/h`)
+
+    const inWindow = tide.height >= spot.tide.min && tide.height <= spot.tide.max
+    score += inWindow ? 15 : 5
+    notes.push(`marea ${tide.height}m${inWindow ? ' (en ventana)' : ''}`)
+
+    return { ok: true, score: Math.round(score), notes }
   }
 
   // intermedio / avanzado: score ponderado, sin veto duro
