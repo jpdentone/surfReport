@@ -85,28 +85,39 @@ export function levelTags(spot: Spot, breaking: number, beginnerPickId?: string 
  * quien pregunta. Quien es para quien lo dice `levelTags()`.
  * Ver CLAUDE.md, decision #2.
  */
-export function evaluate(spot: Spot, conditions: Conditions, tide: TidePoint): Verdict {
+export function evaluate(spot: Spot, conditions: Conditions, tide: TidePoint | null): Verdict {
   const breaking = breakingHeight(spot, conditions)
   const notes: string[] = []
   let score = 0
 
+  // Periodo pesa mas que altura (45 vs 25) — ver CLAUDE.md decision #5.
+  // No es arbitrario: con 35/35 el dia 18-ago (2.8m/10.15s) le ganaba al
+  // 14-ago (1.88m/14.2s), que es exactamente el error que este proyecto
+  // existe para evitar. Hay un test que lo fija (lib/__tests__/scoring.test.ts).
   const periodFit = Math.min(conditions.swell.period / 16, 1)
-  score += periodFit * 35
+  score += periodFit * 45
   notes.push(`periodo ${conditions.swell.period}s`)
 
   const heightFit = Math.min(breaking / 2.5, 1)
-  score += heightFit * 35
+  score += heightFit * 25
   notes.push(`ola est. ${breaking.toFixed(1)}m`)
 
   const windFit = 1 - Math.min(conditions.wind.speed / 40, 1)
   score += windFit * 15
   notes.push(`viento ${conditions.wind.speed}km/h`)
 
-  const inWindow = tide.height >= spot.tide.min && tide.height <= spot.tide.max
-  score += inWindow ? 15 : 5
-  notes.push(`marea ${tide.height}m${inWindow ? ' (en ventana)' : ''}`)
-  if (spot.tide.prefers && tide.trend === spot.tide.prefers) {
-    notes.push(`marea ${tide.trend === 'rising' ? 'subiendo' : 'bajando'} (preferida)`)
+  if (tide) {
+    const inWindow = tide.height >= spot.tide.min && tide.height <= spot.tide.max
+    score += inWindow ? 15 : 5
+    notes.push(`marea ${tide.height}m${inWindow ? ' (en ventana)' : ''}`)
+    if (spot.tide.prefers && tide.trend === spot.tide.prefers) {
+      notes.push(`marea ${tide.trend === 'rising' ? 'subiendo' : 'bajando'} (preferida)`)
+    }
+  } else {
+    // Sin tabla de mareas para esa fecha: puntaje neutro en vez de romper.
+    // Ver COBERTURA en lib/tide.ts.
+    score += 10
+    notes.push('marea sin datos')
   }
 
   return { ok: true, score: Math.round(score), notes }

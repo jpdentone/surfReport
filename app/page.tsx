@@ -120,15 +120,12 @@ export default async function Home({ searchParams }: PageProps) {
     }),
   )
 
-  let tide
-  let sparkline: { points: ReturnType<typeof getTideSeries>; upcoming: ReturnType<typeof getUpcomingExtremes> } | null = null
-  try {
-    tide = getTideAt(targetDateTime)
-    const startOfSelectedDay = limaDateTime(selectedDay, '00:00')
-    sparkline = { points: getTideSeries(startOfSelectedDay, 25), upcoming: getUpcomingExtremes(targetDateTime, 2) }
-  } catch {
-    tide = null
-  }
+  const tide = getTideAt(targetDateTime)
+  const tidePoints = getTideSeries(limaDateTime(selectedDay, '00:00'), 25)
+  const sparkline =
+    tide && tidePoints
+      ? { points: tidePoints, upcoming: getUpcomingExtremes(targetDateTime, 2) }
+      : null
 
   const breakingById: Record<string, number> = {}
   for (const { spot, conditions } of bySpot) {
@@ -138,8 +135,10 @@ export default async function Home({ searchParams }: PageProps) {
 
   const entries = sortByVerdict(
     bySpot.map(({ spot, conditions }) => {
-      if (!conditions || !tide) {
-        return { spot, verdict: { ok: false, reason: 'sin datos de marea/oleaje' } as const, levelTags: [] }
+      // Sin oleaje no hay nada que decir; sin marea si — el score sigue
+      // funcionando degradado (ver lib/scoring.ts).
+      if (!conditions) {
+        return { spot, verdict: { ok: false, reason: 'sin datos de oleaje' } as const, levelTags: [] }
       }
       const breaking = breakingHeight(spot, conditions)
       const verdict = evaluate(spot, conditions, tide)
@@ -202,8 +201,9 @@ export default async function Home({ searchParams }: PageProps) {
               upcoming={sparkline.upcoming}
             />
           ) : (
-            <p className="text-sm" style={{ color: 'var(--stop)' }}>
-              Sin datos de marea para esa fecha — falta refrescar la tabla del mes (ver docs/PLAN.md).
+            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+              Sin tabla de mareas para esta fecha — el resto del reporte sigue sirviendo, pero el
+              score no considera la marea.
             </p>
           )}
         </div>

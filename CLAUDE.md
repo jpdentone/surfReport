@@ -56,12 +56,15 @@ decisión #2 reescrita):
    offshore; hay que atenuarlo por refracción/abrigo para estimar la ola que
    realmente rompe en cada playa. Ver punto crítico abajo.
 
-5. **El periodo pesa tanto como la altura en el score (35/35 en
-   `evaluate()`).** Ojo: esto NO es lo mismo que "rankear por altura", que
-   sigue siendo el error a evitar — un día grande pero de periodo corto
-   (desordenado) no debe ganarle a uno más chico pero de periodo largo
-   (ordenado). El score actual ya lo resuelve al pesar ambos igual en vez
-   de solo mirar altura.
+5. **El periodo pesa MÁS que la altura en el score (45 vs 25 en
+   `evaluate()`).** Un día grande pero de periodo corto (desordenado) no
+   debe ganarle a uno más chico pero de periodo largo (ordenado). Los pesos
+   no son arbitrarios: con 35/35 el caso de referencia del plan (14-ago
+   1.88m/14.2s vs 18-ago 2.8m/10.15s) se invertía — el día grande y
+   desordenado ganaba. Pasó desapercibido cuando se unificó el score y lo
+   detectaron recién los tests. **Hay un test que fija este caso**
+   (`lib/__tests__/scoring.test.ts`); si se tocan los pesos, tiene que
+   seguir pasando.
 
 6. **La marea se precalcula, no se consulta.** Es astronomía, no clima.
 

@@ -1,68 +1,71 @@
 import type { TidePoint } from './types'
-import tideData from '../data/tides-callao-2026-08.json'
+import tideData from '../data/tides-callao.json'
 
 /**
  * Marea de Callao — interpolada entre pleamares/bajamares OFICIALES de
- * DIHIDRONAV (Marina de Guerra del Peru, www.dhn.mil.pe), no entre
- * constituyentes armonicas inventadas. DIHIDRONAV no publica constituyentes
- * publicamente; lo que sí publican son los extremos ya calculados por mes en
- * PDF, que es lo que esta cargado en `data/tides-callao-2026-08.json`.
+ * DIHIDRONAV (Marina de Guerra del Peru, www.dhn.mil.pe).
  *
- * Interpolacion cosenoidal entre extremos consecutivos: es la aproximacion
- * estandar para el tramo entre una pleamar y una bajamar (curva suave tipo
- * "rule of twelfths" continua). No es exacta minuto a minuto, pero es mucho
- * mas confiable que un modelo armonico con amplitudes a ojo.
+ * DIHIDRONAV no publica constituyentes armonicas (son propietarias); si
+ * publica un PDF mensual con los extremos ya calculados, que es lo que
+ * acumula `data/tides-callao.json`. Interpolacion cosenoidal entre extremos
+ * consecutivos: la aproximacion estandar para el tramo entre una pleamar y
+ * una bajamar.
  *
- * LIMITE IMPORTANTE: la data cargada solo cubre agosto 2026. Fuera de ese
- * rango, `getTideAt` tira un error explicito en vez de inventar un numero.
- * Para refrescar: bajar el PDF del mes siguiente de
- * https://www.dhn.mil.pe/portal/pdf-tabla-marea/CALLAO y parsearlo con el
- * mismo formato (ver docs/PLAN.md Fase 2).
+ * COBERTURA: solo los meses ya descargados (ver `months` en el JSON). Fuera
+ * de ese rango estas funciones devuelven `null` en vez de inventar un
+ * numero — la app sigue funcionando sin marea, con el score degradado.
+ * Refrescar con `scripts/refresh_tides.py` (automatizado mensualmente en
+ * .github/workflows/refresh-tides.yml).
  */
 
 type Extreme = { time: string; heightCm: number }
 
 const extremes: Extreme[] = (tideData as { extremes: Extreme[] }).extremes
+const times: number[] = extremes.map((e) => new Date(e.time).getTime())
 
-function findBracket(date: Date): [Extreme, Extreme] {
-  const ts = date.getTime()
-  for (let i = 0; i < extremes.length - 1; i++) {
-    const t1 = new Date(extremes[i].time).getTime()
-    const t2 = new Date(extremes[i + 1].time).getTime()
-    if (ts >= t1 && ts <= t2) {
-      return [extremes[i], extremes[i + 1]]
-    }
-  }
-  const first = new Date(extremes[0].time).getTime()
-  const last = new Date(extremes[extremes.length - 1].time).getTime()
-  throw new Error(
-    `getTideAt: ${date.toISOString()} fuera del rango de datos cargados ` +
-      `(${new Date(first).toISOString()} a ${new Date(last).toISOString()}). ` +
-      `Falta refrescar data/tides-callao-*.json con el PDF del mes correspondiente.`,
-  )
+export const tideCoverage = {
+  months: (tideData as { months?: string[] }).months ?? [],
+  from: times[0],
+  to: times[times.length - 1],
 }
 
-function heightAt(date: Date): number {
-  const [a, b] = findBracket(date)
+/** Busqueda binaria del par de extremos que rodea a `ts`. null si esta fuera de rango. */
+function findBracket(ts: number): [Extreme, Extreme] | null {
+  if (ts < times[0] || ts > times[times.length - 1]) return null
+  let lo = 0
+  let hi = times.length - 1
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1
+    if (times[mid] <= ts) lo = mid
+    else hi = mid
+  }
+  return [extremes[lo], extremes[hi]]
+}
+
+export function getTideAt(date: Date): TidePoint | null {
+  const ts = date.getTime()
+  const bracket = findBracket(ts)
+  if (!bracket) return null
+
+  const [a, b] = bracket
   const t1 = new Date(a.time).getTime()
   const t2 = new Date(b.time).getTime()
-  const frac = (date.getTime() - t1) / (t2 - t1)
-  const cm = a.heightCm + (b.heightCm - a.heightCm) * (1 - Math.cos(Math.PI * frac)) / 2
-  return cm / 100
+  const frac = t2 === t1 ? 0 : (ts - t1) / (t2 - t1)
+  const cm = a.heightCm + ((b.heightCm - a.heightCm) * (1 - Math.cos(Math.PI * frac))) / 2
+
+  return {
+    time: date.toISOString(),
+    height: Math.round(cm) / 100,
+    trend: b.heightCm >= a.heightCm ? 'rising' : 'falling',
+  }
 }
 
-export function getTideAt(date: Date): TidePoint {
-  const [a, b] = findBracket(date)
-  const height = heightAt(date)
-  const trend: 'rising' | 'falling' = b.heightCm >= a.heightCm ? 'rising' : 'falling'
-  return { time: date.toISOString(), height: Math.round(height * 100) / 100, trend }
-}
-
-export function getTideSeries(start: Date, hours: number): TidePoint[] {
+export function getTideSeries(start: Date, hours: number): TidePoint[] | null {
   const points: TidePoint[] = []
   for (let i = 0; i < hours; i++) {
-    const t = new Date(start.getTime() + i * 3_600_000)
-    points.push(getTideAt(t))
+    const p = getTideAt(new Date(start.getTime() + i * 3_600_000))
+    if (!p) return null
+    points.push(p)
   }
   return points
 }
@@ -72,9 +75,11 @@ export type UpcomingExtreme = { time: string; height: number; kind: 'pleamar' | 
 /** Proximos extremos reales (pleamar/bajamar) despues de `date`, para mostrar en UI. */
 export function getUpcomingExtremes(date: Date, count = 2): UpcomingExtreme[] {
   const ts = date.getTime()
-  const upcoming = extremes.filter((e) => new Date(e.time).getTime() > ts).slice(0, count)
-  return upcoming.map((e, i) => {
-    const prev = i === 0 ? extremes[extremes.indexOf(e) - 1] : upcoming[i - 1]
+  const startIdx = times.findIndex((t) => t > ts)
+  if (startIdx === -1) return []
+
+  return extremes.slice(startIdx, startIdx + count).map((e, i) => {
+    const prev = extremes[startIdx + i - 1]
     const kind: 'pleamar' | 'bajamar' = !prev || e.heightCm >= prev.heightCm ? 'pleamar' : 'bajamar'
     return { time: e.time, height: e.heightCm / 100, kind }
   })

@@ -1,0 +1,38 @@
+name: Refrescar mareas
+
+# La tabla de mareas de DIHIDRONAV solo cubre los meses ya descargados, y su
+# endpoint SIEMPRE devuelve el mes corriente (ignora cualquier parametro de
+# mes/año — probado). Sin esto, la app se queda sin marea al cambiar de mes.
+#
+# Corre el dia 1 de cada mes. Al commitear el JSON nuevo, la integracion de
+# Vercel con GitHub redespliega sola.
+on:
+  schedule:
+    - cron: '0 8 1 * *' # 03:00 en Lima (UTC-5) del dia 1
+  workflow_dispatch: # tambien a mano, por si hace falta antes
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pypdf
+      - run: python3 scripts/refresh_tides.py
+
+      - name: Commitear si cambio
+        run: |
+          if git diff --quiet -- data/tides-callao.json; then
+            echo "Sin cambios en la tabla de mareas."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/tides-callao.json
+          git commit -m "Mareas: agregar mes corriente (DIHIDRONAV)"
+          git push

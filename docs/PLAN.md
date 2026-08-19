@@ -178,12 +178,12 @@ Guardar solo "marea: 0.8m" es el error clásico. Importa:
       extremo, la interpolación devuelve la altura publicada.
 - [x] `getTideAt`/`getTideSeries` — dan `{ height, trend }`. `trend` sale de
       comparar contra el siguiente extremo (confiable, no aproximado).
-- [ ] ⚠️ **Cobertura de datos: solo agosto 2026.** Fuera de ese rango
-      `getTideAt` tira un error explícito (no inventa un número). Para seguir
-      usando la app en septiembre hay que repetir el proceso: bajar el PDF de
-      ese mes desde la misma URL (el endpoint siempre devuelve el mes
-      corriente) y parsearlo — es manual por ahora, ver TODO abajo.
-- [ ] Automatizar el refresco mensual. **Probado (18-ago-2026): el endpoint
+- [x] **Cobertura resuelta**: `data/tides-callao.json` acumula meses y
+      `scripts/refresh_tides.py` agrega el corriente. Fuera del rango
+      cubierto las funciones devuelven `null` y la app sigue andando sin
+      marea (score degradado con nota explícita), en vez de romperse.
+- [x] **Automatizado**: `.github/workflows/refresh-tides.yml`, cron el día 1
+      de cada mes. Nota original que sigue vigente: **el endpoint
       IGNORA parámetros de mes/año** (`?mes=09`, `/09/2026`, etc. — mismo
       PDF de agosto siempre, byte a byte). No hay archivo navegable ni forma
       de traer meses futuros por adelantado. Solo trae "el mes corriente".
@@ -204,8 +204,8 @@ Guardar solo "marea: 0.8m" es el error clásico. Importa:
 - [x] Verificado a mano contra el caso 14-ago vs 18-ago (abajo) — pasa:
       14-ago (14.2s) puntúa 84 vs 18-ago (10.15s) puntúa 82 para advanced;
       ambos días vetados para kid-beginner por tamaño. Correcto.
-- [ ] **Falta formalizar como test automatizado** (vitest o similar) —
-      la verificación de arriba fue un script one-off, no vive en el repo.
+- [x] **Formalizado con vitest** (`lib/__tests__/`, `npm test`). Al hacerlo
+      se descubrió que el caso ya no pasaba — ver bitácora.
 
 ### Fase 4 — UI
 - [x] Diseño real implementado (no el placeholder de antes). Dirección:
@@ -372,6 +372,33 @@ funcionaron, correcciones de la escuela, gates ajustados.
   picada" con el swell grande de hoy), drawer abre/cierra bien, tabla de
   semana con degradado de colores correcto (swell bajando de ~2.3m hoy a
   ~0.9m el lunes, consistente con el patrón real que se viene observando).
+- **2026-08-18** — **Marea automatizada, tests y CI.**
+  * `scripts/refresh_tides.py`: baja el PDF de DIHIDRONAV, lo parsea (cualquier
+    mes, no solo agosto) y lo ACUMULA en `data/tides-callao.json` sin perder
+    los meses ya guardados. Automatizado en
+    `.github/workflows/refresh-tides.yml` (cron el dia 1 de cada mes +
+    `workflow_dispatch` para correrlo a mano).
+  * `lib/tide.ts` reescrito: fuera del rango cubierto devuelve `null` en vez
+    de tirar excepcion, y `evaluate()` da puntaje neutro con la nota "marea
+    sin datos". Antes, al cambiar de mes, la app mostraba TODAS las playas
+    como "sin datos" — se rompia entera. Ahora degrada solo la marea.
+    Tambien: busqueda binaria en vez de lineal, y `tideCoverage` exportado.
+  * **Tests con vitest** (`npm test`, 15 tests). Fijan el caso de referencia
+    14-ago vs 18-ago, la exposicion direccional, la logica de `salida`, la
+    cadena de principiantes, las dos observaciones reales de la escuela, y
+    la degradacion sin marea.
+  * ⚠️ **Los tests atraparon una regresion real**: al unificar el score a
+    35/35 (periodo/altura), el caso de referencia del plan se habia
+    invertido en silencio — el dia grande y desordenado (18-ago) le ganaba
+    al chico y ordenado (14-ago), que es justo el error que este proyecto
+    existe para evitar. Corregido a 45/25. Ver CLAUDE.md decision #5.
+  * `.github/workflows/ci.yml`: lint + tests en cada push/PR.
+  * **NO se creo workflow de deploy**: Vercel se conecta directo a GitHub y
+    despliega solo en cada push, con previews en PRs y sin manejar secrets.
+    Un workflow de deploy seria redundante y peor. (El de mareas sigue
+    teniendo sentido porque commitea data, y eso dispara el redeploy solo.)
+  * Vitest fijado en `^3`: la 4 usa rolldown y falla por un bug de npm con
+    dependencias opcionales nativas.
 - **2026-08-18** — **Exposicion direccional + modelo de salida.** Dos
   cambios grandes, ambos originados en conocimiento del usuario:
   1. `exposure` (numero fijo) → `facing` + `exposurePeak`, con atenuacion

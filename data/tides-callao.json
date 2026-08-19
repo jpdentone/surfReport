@@ -1,9 +1,10 @@
 {
   "station": "Callao",
   "source": "DIHIDRONAV (Marina de Guerra del Peru) - www.dhn.mil.pe",
-  "fetchedAt": "2026-08-18",
-  "month": "2026-08",
-  "note": "Pleamares/bajamares oficiales. NO son constituyentes armonicas (DIHIDRONAV no las publica publicamente) - son los extremos ya calculados por ellos. lib/tide.ts interpola entre estos puntos.",
+  "note": "Pleamares/bajamares oficiales, NO constituyentes armonicas (DIHIDRONAV no las publica). lib/tide.ts interpola entre estos puntos. Refrescar con scripts/refresh_tides.py — el endpoint solo devuelve el mes corriente.",
+  "months": [
+    "2026-08"
+  ],
   "extremes": [
     {
       "time": "2026-08-01T00:52:00-05:00",
